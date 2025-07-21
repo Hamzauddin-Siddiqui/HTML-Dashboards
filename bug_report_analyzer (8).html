@@ -1,0 +1,1420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Report Analysis Tool</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1em;
+        }
+
+        .upload-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .upload-area {
+            border: 3px dashed #3498db;
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .upload-area:hover {
+            border-color: #2980b9;
+            background: #f8f9fa;
+        }
+
+        .upload-area.dragover {
+            border-color: #27ae60;
+            background: #e8f5e8;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        .upload-icon {
+            font-size: 3em;
+            color: #3498db;
+            margin-bottom: 15px;
+        }
+
+        .btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            margin: 5px;
+        }
+
+        .btn:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-success {
+            background: #27ae60;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .analysis-section {
+            display: none;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .section-title {
+            font-size: 1.5em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .collapsible {
+            background: #ecf0f1;
+            border: none;
+            padding: 15px 20px;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 8px;
+            margin: 5px 0;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .collapsible:hover {
+            background: #d5dbdb;
+        }
+
+        .collapsible.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .content {
+            padding: 0 20px;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease;
+            background: #f8f9fa;
+            border-radius: 0 0 8px 8px;
+        }
+
+        .content.active {
+            max-height: 400px;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .tag-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .tag-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            transition: all 0.3s ease;
+        }
+
+        .tag-item:hover {
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .tag-item input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+        }
+
+        .tag-label {
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            flex: 1;
+        }
+
+        .tag-count {
+            background: #e74c3c;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .date-range-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin: 30px 0;
+        }
+
+        .period-config {
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 12px;
+            border: 2px solid #ecf0f1;
+        }
+
+        .period-title {
+            font-size: 1.3em;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .date-input-group {
+            margin-bottom: 15px;
+        }
+
+        .date-input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #34495e;
+        }
+
+        .date-input-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ecf0f1;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+
+        .date-input-group input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .generate-section {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .generate-btn {
+            background: #27ae60;
+            font-size: 18px;
+            padding: 15px 40px;
+            border-radius: 10px;
+        }
+
+        .results-section {
+            display: none;
+        }
+
+        .tabs-container {
+            margin: 20px 0;
+        }
+
+        .tabs-header {
+            display: flex;
+            background: #ecf0f1;
+            border-radius: 8px 8px 0 0;
+            overflow: hidden;
+            border-bottom: 2px solid #bdc3c7;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 15px 20px;
+            background: #ecf0f1;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #34495e;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab-button:hover {
+            background: #d5dbdb;
+        }
+
+        .tab-button.active {
+            background: white;
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 20px;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .tab-title {
+            margin: 0 0 20px 0;
+            color: #2c3e50;
+            font-size: 1.3em;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .comparison-table th {
+            background: #34495e;
+            color: white;
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .comparison-table td {
+            padding: 12px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .comparison-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .comparison-table tr:hover {
+            background: #e3f2fd;
+        }
+
+        .positive-change {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .negative-change {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .neutral-change {
+            color: #7f8c8d;
+        }
+
+        .tenant-header {
+            background: #5dade2 !important;
+        }
+
+        .topic-header {
+            background: #58d68d !important;
+        }
+
+        .tenant-analysis-card {
+            background: white;
+            border-radius: 12px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .tenant-header-card {
+            padding: 20px;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .tenant-header-italy {
+            background: #5dade2;
+        }
+
+        .tenant-header-germany {
+            background: #58d68d;
+        }
+
+        .tenant-header-netherlands {
+            background: #f39c12;
+        }
+
+        .tenant-header-poland {
+            background: #e74c3c;
+        }
+
+        .tenant-header-canada {
+            background: #9b59b6;
+        }
+
+        .tenant-header-austria {
+            background: #1abc9c;
+        }
+
+        .tenant-header-default {
+            background: #34495e;
+        }
+
+        .tenant-stats {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .tenant-topic-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .tenant-topic-table th {
+            background: #f8f9fa;
+            color: #2c3e50;
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid #ecf0f1;
+        }
+
+        .tenant-topic-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .tenant-topic-table tr:nth-child(even) {
+            background: #fafbfc;
+        }
+
+        .tenant-topic-table tr:hover {
+            background: #e3f2fd;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .stats-summary {
+            background: #e8f6f3;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #27ae60;
+        }
+
+        .bulk-actions {
+            margin: 15px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+
+        .error-message {
+            background: #fdf2f2;
+            color: #e74c3c;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #e74c3c;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .success-message {
+            background: #f0fdf4;
+            color: #16a34a;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #16a34a;
+            margin: 15px 0;
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .date-range-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .tag-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .comparison-table, .tenant-topic-table {
+                font-size: 14px;
+            }
+            
+            .tenant-header-card {
+                flex-direction: column;
+                text-align: center;
+                gap: 10px;
+            }
+            
+            .tab-button {
+                flex-direction: column;
+                font-size: 14px;
+                padding: 12px 10px;
+            }
+            
+            .tab-title {
+                font-size: 1.1em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🐛 Bug Report Analysis Tool</h1>
+            <p>Upload your CSV file to analyze bug reports across different time periods</p>
+        </div>
+
+        <!-- File Upload Section -->
+        <div class="upload-section">
+            <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                <div class="upload-icon">📁</div>
+                <h3>Click to upload CSV file or drag and drop</h3>
+                <p>Supports CSV files with bug report data</p>
+                <input type="file" id="fileInput" accept=".csv" />
+            </div>
+            <div class="error-message" id="errorMessage"></div>
+            <div class="success-message" id="successMessage"></div>
+        </div>
+
+        <!-- Loading Indicator -->
+        <div class="loading" id="loadingIndicator">
+            <div class="spinner"></div>
+            <p>Processing your data...</p>
+        </div>
+
+        <!-- Analysis Configuration Section -->
+        <div class="analysis-section" id="analysisSection">
+            <h2 class="section-title">📊 Configure Analysis</h2>
+            
+            <!-- Data Summary -->
+            <div class="stats-summary" id="dataSummary"></div>
+
+            <!-- Tag Selection -->
+            <div class="tag-selection">
+                <button class="collapsible" onclick="toggleCollapsible(this)">
+                    <span>🏷️ Select Tags to Include</span>
+                    <span>▼</span>
+                </button>
+                <div class="content">
+                    <div class="bulk-actions">
+                        <button class="btn" onclick="selectAllTags('tenant')">Select All Tenant Tags</button>
+                        <button class="btn" onclick="deselectAllTags('tenant')">Deselect All Tenant Tags</button>
+                        <button class="btn" onclick="selectAllTags('topic')">Select All Topic Tags</button>
+                        <button class="btn" onclick="deselectAllTags('topic')">Deselect All Topic Tags</button>
+                    </div>
+                    
+                    <h4>Tenant Tags (Country/Region)</h4>
+                    <div class="tag-grid" id="tenantTags"></div>
+                    
+                    <h4 style="margin-top: 25px;">Topic Tags</h4>
+                    <div class="tag-grid" id="topicTags"></div>
+                </div>
+            </div>
+
+            <!-- Exclusion Suggestions -->
+            <div class="exclusion-selection">
+                <button class="collapsible" onclick="toggleCollapsible(this)">
+                    <span>🚫 Suggested Exclusions (Auto-selected)</span>
+                    <span>▼</span>
+                </button>
+                <div class="content">
+                    <p style="margin-bottom: 15px; color: #7f8c8d;">These tags are commonly excluded from analysis. Uncheck any you want to include.</p>
+                    <div class="tag-grid" id="exclusionTags"></div>
+                </div>
+            </div>
+
+            <!-- Date Range Configuration -->
+            <div class="date-range-configuration">
+                <button class="collapsible" onclick="toggleCollapsible(this)">
+                    <span>📅 Date Range Comparison</span>
+                    <span>▼</span>
+                </button>
+                <div class="content">
+                    <div class="date-range-section">
+                        <div class="period-config">
+                            <h3 class="period-title">Period 1</h3>
+                            <div class="date-input-group">
+                                <label for="period1Start">Start Date:</label>
+                                <input type="date" id="period1Start" />
+                            </div>
+                            <div class="date-input-group">
+                                <label for="period1End">End Date:</label>
+                                <input type="date" id="period1End" />
+                            </div>
+                        </div>
+                        <div class="period-config">
+                            <h3 class="period-title">Period 2</h3>
+                            <div class="date-input-group">
+                                <label for="period2Start">Start Date:</label>
+                                <input type="date" id="period2Start" />
+                            </div>
+                            <div class="date-input-group">
+                                <label for="period2End">End Date:</label>
+                                <input type="date" id="period2End" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Generate Comparison Button -->
+            <div class="generate-section">
+                <button class="btn generate-btn" onclick="generateComparison()" id="generateBtn" disabled>
+                    Generate Comparison
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection">
+            <h2 class="section-title">📈 Analysis Results</h2>
+            
+            <div class="stats-summary" id="resultsSummary"></div>
+
+            <!-- Tabs Container -->
+            <div class="tabs-container">
+                <div class="tabs-header">
+                    <button class="tab-button active" onclick="switchTab(event, 'overviewTab')">
+                        📊 Overview Comparison
+                    </button>
+                    <button class="tab-button" onclick="switchTab(event, 'tenantAnalysisTab')">
+                        🏢 Tenant-wise Analysis
+                    </button>
+                </div>
+
+                <!-- Overview Tab -->
+                <div id="overviewTab" class="tab-content active">
+                    <!-- Tenant Comparison Table -->
+                    <div>
+                        <h3 class="tab-title" style="color: #5dade2;">Tenant Comparison</h3>
+                        <table class="comparison-table" id="tenantComparisonTable">
+                            <thead>
+                                <tr class="tenant-header">
+                                    <th>Tenant</th>
+                                    <th>Period 1 Cases</th>
+                                    <th>Period 1 %</th>
+                                    <th>Period 2 Cases</th>
+                                    <th>Period 2 %</th>
+                                    <th>Case Change</th>
+                                    <th>% Point Change</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tenantComparisonBody"></tbody>
+                        </table>
+                    </div>
+
+                    <!-- Topic Comparison Table -->
+                    <div>
+                        <h3 class="tab-title" style="color: #58d68d; margin-top: 40px;">Topic Comparison</h3>
+                        <table class="comparison-table" id="topicComparisonTable">
+                            <thead>
+                                <tr class="topic-header">
+                                    <th>Topic</th>
+                                    <th>Period 1 Cases</th>
+                                    <th>Period 1 %</th>
+                                    <th>Period 2 Cases</th>
+                                    <th>Period 2 %</th>
+                                    <th>Case Change</th>
+                                    <th>% Point Change</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topicComparisonBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Tenant Analysis Tab -->
+                <div id="tenantAnalysisTab" class="tab-content">
+                    <h3 class="tab-title" style="color: #8e44ad;">Tenant-wise Topic Analysis</h3>
+                    <div id="tenantAnalysisContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let globalData = null;
+        let allTags = { tenant: new Set(), topic: new Set(), exclusion: new Set() };
+        let tagCounts = {};
+
+        // Suggested exclusion tags based on previous analysis
+        const suggestedExclusions = new Set([
+            'bmdemo-global', 'bmdemo-us', 'unknown', 'bmdemo-uk', 's',
+            '#app-samebug', '#other-empty', '#other-samebug', '#other-test',
+            '#test-depotvisit', '#test-internal', '#unknown-NodriverResponse'
+        ]);
+
+        // Tab switching functionality
+        function switchTab(event, tabId) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(tab => tab.classList.remove('active'));
+            
+            // Remove active class from all tab buttons
+            const tabButtons = document.querySelectorAll('.tab-button');
+            tabButtons.forEach(button => button.classList.remove('active'));
+            
+            // Show selected tab and mark button as active
+            document.getElementById(tabId).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // File upload handling
+        document.getElementById('fileInput').addEventListener('change', handleFileUpload);
+        
+        // Drag and drop functionality
+        const uploadArea = document.querySelector('.upload-area');
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        }
+
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                processFile(files[0]);
+            }
+        }
+
+        function handleFileUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                processFile(file);
+            }
+        }
+
+        function processFile(file) {
+            showLoading();
+            hideMessages();
+
+            if (!file.name.toLowerCase().endsWith('.csv')) {
+                showError('Please upload a CSV file.');
+                hideLoading();
+                return;
+            }
+
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (results.errors.length > 0) {
+                        showError('Error parsing CSV: ' + results.errors[0].message);
+                        hideLoading();
+                        return;
+                    }
+                    
+                    globalData = results.data;
+                    analyzeTags();
+                    setupAnalysisInterface();
+                    hideLoading();
+                    showSuccess(`Successfully loaded ${globalData.length.toLocaleString()} bug reports.`);
+                },
+                error: function(error) {
+                    showError('Error reading file: ' + error.message);
+                    hideLoading();
+                }
+            });
+        }
+
+        function analyzeTags() {
+            allTags.tenant.clear();
+            allTags.topic.clear();
+            allTags.exclusion.clear();
+            tagCounts = {};
+
+            globalData.forEach(row => {
+                const tagsString = row.Tags;
+                try {
+                    const tags = JSON.parse(tagsString);
+                    if (Array.isArray(tags)) {
+                        tags.forEach(tag => {
+                            tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                            
+                            // Check if tag should be excluded
+                            if (suggestedExclusions.has(tag) || tag.length <= 5) {
+                                allTags.exclusion.add(tag);
+                            } else if (tag.startsWith('gls-')) {
+                                allTags.tenant.add(tag);
+                            } else if (tag.startsWith('#')) {
+                                allTags.topic.add(tag);
+                            } else {
+                                allTags.exclusion.add(tag);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    // Skip invalid JSON
+                }
+            });
+        }
+
+        function setupAnalysisInterface() {
+            displayDataSummary();
+            createTagSelectors();
+            setupDateRanges();
+            document.getElementById('analysisSection').style.display = 'block';
+            document.getElementById('generateBtn').disabled = false;
+        }
+
+        function displayDataSummary() {
+            const summary = document.getElementById('dataSummary');
+            const validCases = getValidCases().length;
+            const exclusionCount = globalData.length - validCases;
+            
+            // Get detailed exclusion breakdown
+            const exclusionDetails = getExclusionDetails();
+            
+            summary.innerHTML = `
+                <h4>📊 Data Summary</h4>
+                <p><strong>Total Cases:</strong> ${globalData.length.toLocaleString()}</p>
+                <p><strong>Valid Cases (after suggested exclusions):</strong> ${validCases.toLocaleString()}</p>
+                <p><strong>Excluded Cases:</strong> ${exclusionCount.toLocaleString()} (${((exclusionCount/globalData.length)*100).toFixed(1)}%)</p>
+                <p><strong>Tenant Tags Found:</strong> ${allTags.tenant.size}</p>
+                <p><strong>Topic Tags Found:</strong> ${allTags.topic.size}</p>
+                <p><strong>Suggested Exclusions:</strong> ${allTags.exclusion.size}</p>
+                
+                ${exclusionCount > 0 ? `
+                <div class="exclusion-details" style="margin-top: 15px;">
+                    <button class="collapsible" onclick="toggleCollapsible(this)" style="margin: 0; font-size: 14px; padding: 10px 15px;">
+                        <span>🔍 View Exclusion Details (${exclusionCount} cases)</span>
+                        <span>▼</span>
+                    </button>
+                    <div class="content" style="background: #fff; border: 1px solid #ddd; border-radius: 0 0 8px 8px;">
+                        <div style="padding: 15px; font-size: 14px;">
+                            ${Object.entries(exclusionDetails).map(([reason, data]) => `
+                                <div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-radius: 6px; border-left: 3px solid #e74c3c;">
+                                    <strong>${reason}:</strong> ${data.count} case${data.count !== 1 ? 's' : ''}
+                                    <br>
+                                    <span style="color: #666; font-size: 13px;">
+                                        Bug #${data.bugNumbers.slice(0, 10).join(', #')}${data.bugNumbers.length > 10 ? ` and ${data.bugNumbers.length - 10} more...` : ''}
+                                    </span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+                ` : ''}
+            `;
+        }
+
+        function getExclusionDetails() {
+            const excludedTags = getSelectedTags('exclusionTags');
+            const exclusionDetails = {};
+            
+            globalData.forEach(row => {
+                const bugNumber = row.Number;
+                const tagsString = row.Tags;
+                let isExcluded = false;
+                let exclusionReason = '';
+                
+                try {
+                    const tags = JSON.parse(tagsString);
+                    
+                    if (!Array.isArray(tags)) {
+                        isExcluded = true;
+                        exclusionReason = 'Invalid tag format';
+                    } else if (tags.length === 1) {
+                        isExcluded = true;
+                        exclusionReason = 'Single tag only';
+                    } else if (tags.length > 2) {
+                        isExcluded = true;
+                        exclusionReason = 'More than 2 tags';
+                    } else {
+                        // Check for excluded tags
+                        const foundExcludedTags = tags.filter(tag => excludedTags.has(tag));
+                        if (foundExcludedTags.length > 0) {
+                            isExcluded = true;
+                            exclusionReason = `Contains excluded tag(s): ${foundExcludedTags.join(', ')}`;
+                        }
+                    }
+                } catch (error) {
+                    isExcluded = true;
+                    exclusionReason = 'JSON parse error';
+                }
+                
+                if (isExcluded) {
+                    if (!exclusionDetails[exclusionReason]) {
+                        exclusionDetails[exclusionReason] = {
+                            count: 0,
+                            bugNumbers: []
+                        };
+                    }
+                    exclusionDetails[exclusionReason].count++;
+                    exclusionDetails[exclusionReason].bugNumbers.push(bugNumber);
+                }
+            });
+            
+            return exclusionDetails;
+        }
+
+        function createTagSelectors() {
+            createTagGrid('tenantTags', allTags.tenant, true);
+            createTagGrid('topicTags', allTags.topic, true);
+            createTagGrid('exclusionTags', allTags.exclusion, false);
+        }
+
+        function createTagGrid(containerId, tags, defaultChecked) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            const sortedTags = Array.from(tags).sort();
+            
+            sortedTags.forEach(tag => {
+                const count = tagCounts[tag] || 0;
+                const isExclusion = containerId === 'exclusionTags';
+                const checked = isExclusion ? true : defaultChecked;
+                
+                const tagItem = document.createElement('div');
+                tagItem.className = 'tag-item';
+                tagItem.innerHTML = `
+                    <input type="checkbox" id="${tag}" ${checked ? 'checked' : ''} 
+                           onchange="updateGenerateButton()" />
+                    <label for="${tag}" class="tag-label">${tag}</label>
+                    <span class="tag-count">${count}</span>
+                `;
+                container.appendChild(tagItem);
+            });
+        }
+
+        function setupDateRanges() {
+            // Get date range from data
+            const dates = globalData.map(row => new Date(row['Reported At'])).filter(d => !isNaN(d));
+            const minDate = new Date(Math.min(...dates));
+            const maxDate = new Date(Math.max(...dates));
+            
+            // Set reasonable default periods
+            const period1End = new Date(minDate.getTime() + (maxDate.getTime() - minDate.getTime()) / 2);
+            const period2Start = new Date(period1End.getTime() + 24 * 60 * 60 * 1000); // Next day
+            
+            document.getElementById('period1Start').value = minDate.toISOString().split('T')[0];
+            document.getElementById('period1End').value = period1End.toISOString().split('T')[0];
+            document.getElementById('period2Start').value = period2Start.toISOString().split('T')[0];
+            document.getElementById('period2End').value = maxDate.toISOString().split('T')[0];
+            
+            // Set min/max attributes
+            ['period1Start', 'period1End', 'period2Start', 'period2End'].forEach(id => {
+                const input = document.getElementById(id);
+                input.min = minDate.toISOString().split('T')[0];
+                input.max = maxDate.toISOString().split('T')[0];
+                input.addEventListener('change', updateGenerateButton);
+            });
+        }
+
+        function getValidCases() {
+            const excludedTags = getSelectedTags('exclusionTags');
+            
+            return globalData.filter(row => {
+                try {
+                    const tags = JSON.parse(row.Tags);
+                    if (!Array.isArray(tags)) return false;
+                    if (tags.length !== 2) return false;
+                    
+                    return !tags.some(tag => excludedTags.has(tag));
+                } catch (error) {
+                    return false;
+                }
+            });
+        }
+
+        function getSelectedTags(containerId) {
+            const container = document.getElementById(containerId);
+            const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
+            return new Set(Array.from(checkboxes).map(cb => cb.id));
+        }
+
+        function generateComparison() {
+            showLoading();
+            
+            setTimeout(() => {
+                try {
+                    const validCases = getValidCases();
+                    const selectedTenants = getSelectedTags('tenantTags');
+                    const selectedTopics = getSelectedTags('topicTags');
+                    
+                    const period1Start = new Date(document.getElementById('period1Start').value);
+                    const period1End = new Date(document.getElementById('period1End').value + 'T23:59:59');
+                    const period2Start = new Date(document.getElementById('period2Start').value);
+                    const period2End = new Date(document.getElementById('period2End').value + 'T23:59:59');
+                    
+                    // Filter cases by date periods
+                    const period1Cases = validCases.filter(row => {
+                        const date = new Date(row['Reported At']);
+                        return date >= period1Start && date <= period1End;
+                    });
+                    
+                    const period2Cases = validCases.filter(row => {
+                        const date = new Date(row['Reported At']);
+                        return date >= period2Start && date <= period2End;
+                    });
+                    
+                    // Generate comparisons
+                    const tenantComparison = generateTenantComparison(period1Cases, period2Cases, selectedTenants);
+                    const topicComparison = generateTopicComparison(period1Cases, period2Cases, selectedTopics);
+                    const tenantTopicAnalysis = generateTenantTopicAnalysis(period1Cases, period2Cases, selectedTenants, selectedTopics);
+                    
+                    displayResults(tenantComparison, topicComparison, tenantTopicAnalysis, period1Cases.length, period2Cases.length);
+                    
+                    hideLoading();
+                    document.getElementById('resultsSection').style.display = 'block';
+                    document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth' });
+                    
+                } catch (error) {
+                    hideLoading();
+                    showError('Error generating comparison: ' + error.message);
+                }
+            }, 100);
+        }
+
+        function generateTenantComparison(period1Cases, period2Cases, selectedTenants) {
+            const results = [];
+            
+            selectedTenants.forEach(tenant => {
+                const period1Count = countTagInCases(period1Cases, tenant);
+                const period2Count = countTagInCases(period2Cases, tenant);
+                
+                const period1Percent = period1Cases.length > 0 ? (period1Count / period1Cases.length) * 100 : 0;
+                const period2Percent = period2Cases.length > 0 ? (period2Count / period2Cases.length) * 100 : 0;
+                
+                results.push({
+                    tag: tenant,
+                    period1Count,
+                    period1Percent,
+                    period2Count,
+                    period2Percent,
+                    caseChange: period2Count - period1Count,
+                    percentChange: period2Percent - period1Percent
+                });
+            });
+            
+            return results.sort((a, b) => b.period2Count - a.period2Count);
+        }
+
+        function generateTopicComparison(period1Cases, period2Cases, selectedTopics) {
+            const results = [];
+            
+            selectedTopics.forEach(topic => {
+                const period1Count = countTagInCases(period1Cases, topic);
+                const period2Count = countTagInCases(period2Cases, topic);
+                
+                const period1Percent = period1Cases.length > 0 ? (period1Count / period1Cases.length) * 100 : 0;
+                const period2Percent = period2Cases.length > 0 ? (period2Count / period2Cases.length) * 100 : 0;
+                
+                results.push({
+                    tag: topic,
+                    period1Count,
+                    period1Percent,
+                    period2Count,
+                    period2Percent,
+                    caseChange: period2Count - period1Count,
+                    percentChange: period2Percent - period1Percent
+                });
+            });
+            
+            return results.sort((a, b) => b.period2Count - a.period2Count);
+        }
+
+        function generateTenantTopicAnalysis(period1Cases, period2Cases, selectedTenants, selectedTopics) {
+            const results = {};
+            
+            selectedTenants.forEach(tenant => {
+                // Get cases for this tenant in each period
+                const tenantPeriod1Cases = period1Cases.filter(row => {
+                    try {
+                        const tags = JSON.parse(row.Tags);
+                        return tags.includes(tenant);
+                    } catch (error) {
+                        return false;
+                    }
+                });
+                
+                const tenantPeriod2Cases = period2Cases.filter(row => {
+                    try {
+                        const tags = JSON.parse(row.Tags);
+                        return tags.includes(tenant);
+                    } catch (error) {
+                        return false;
+                    }
+                });
+                
+                const tenantTopics = [];
+                
+                selectedTopics.forEach(topic => {
+                    const period1Count = countTagInCases(tenantPeriod1Cases, topic);
+                    const period2Count = countTagInCases(tenantPeriod2Cases, topic);
+                    
+                    // Only include topics that appear in at least one period for this tenant
+                    if (period1Count > 0 || period2Count > 0) {
+                        const period1Percent = tenantPeriod1Cases.length > 0 ? (period1Count / tenantPeriod1Cases.length) * 100 : 0;
+                        const period2Percent = tenantPeriod2Cases.length > 0 ? (period2Count / tenantPeriod2Cases.length) * 100 : 0;
+                        
+                        tenantTopics.push({
+                            topic,
+                            period1Count,
+                            period1Percent,
+                            period2Count,
+                            period2Percent,
+                            caseChange: period2Count - period1Count,
+                            percentChange: period2Percent - period1Percent
+                        });
+                    }
+                });
+                
+                // Sort by period 2 count (descending)
+                tenantTopics.sort((a, b) => b.period2Count - a.period2Count);
+                
+                results[tenant] = {
+                    topics: tenantTopics,
+                    period1Total: tenantPeriod1Cases.length,
+                    period2Total: tenantPeriod2Cases.length,
+                    totalChange: tenantPeriod2Cases.length - tenantPeriod1Cases.length
+                };
+            });
+            
+            return results;
+        }
+
+        function countTagInCases(cases, tag) {
+            return cases.filter(row => {
+                try {
+                    const tags = JSON.parse(row.Tags);
+                    return tags.includes(tag);
+                } catch (error) {
+                    return false;
+                }
+            }).length;
+        }
+
+        function displayResults(tenantComparison, topicComparison, tenantTopicAnalysis, period1Total, period2Total) {
+            // Update results summary
+            const summary = document.getElementById('resultsSummary');
+            summary.innerHTML = `
+                <h4>📈 Analysis Results Summary</h4>
+                <p><strong>Period 1 Total Cases:</strong> ${period1Total.toLocaleString()}</p>
+                <p><strong>Period 2 Total Cases:</strong> ${period2Total.toLocaleString()}</p>
+                <p><strong>Total Change:</strong> ${(period2Total - period1Total).toLocaleString()} cases</p>
+                <p><strong>Change Rate:</strong> ${period1Total > 0 ? ((period2Total - period1Total) / period1Total * 100).toFixed(1) : 'N/A'}%</p>
+            `;
+            
+            // Display tenant comparison
+            displayComparisonTable('tenantComparisonBody', tenantComparison);
+            
+            // Display topic comparison
+            displayComparisonTable('topicComparisonBody', topicComparison);
+            
+            // Display tenant-wise topic analysis
+            displayTenantTopicAnalysis(tenantTopicAnalysis);
+        }
+
+        function displayComparisonTable(bodyId, data) {
+            const tbody = document.getElementById(bodyId);
+            tbody.innerHTML = '';
+            
+            data.forEach(item => {
+                const row = document.createElement('tr');
+                
+                const caseChangeClass = item.caseChange > 0 ? 'positive-change' : 
+                                       item.caseChange < 0 ? 'negative-change' : 'neutral-change';
+                
+                const percentChangeClass = item.percentChange > 0 ? 'positive-change' : 
+                                          item.percentChange < 0 ? 'negative-change' : 'neutral-change';
+                
+                row.innerHTML = `
+                    <td><code>${item.tag}</code></td>
+                    <td>${item.period1Count.toLocaleString()}</td>
+                    <td>${item.period1Percent.toFixed(1)}%</td>
+                    <td>${item.period2Count.toLocaleString()}</td>
+                    <td>${item.period2Percent.toFixed(1)}%</td>
+                    <td class="${caseChangeClass}">
+                        ${item.caseChange > 0 ? '+' : ''}${item.caseChange.toLocaleString()}
+                    </td>
+                    <td class="${percentChangeClass}">
+                        ${item.percentChange > 0 ? '+' : ''}${item.percentChange.toFixed(2)}
+                    </td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+
+        function displayTenantTopicAnalysis(tenantTopicAnalysis) {
+            const container = document.getElementById('tenantAnalysisContainer');
+            container.innerHTML = '';
+            
+            // Get tenant display names
+            const tenantNames = {
+                'gls-it': 'GLS Italy (gls-it)',
+                'gls-de': 'GLS Germany (gls-de)',
+                'gls-nl': 'GLS Netherlands (gls-nl)',
+                'gls-pl': 'GLS Poland (gls-pl)',
+                'gls-ca': 'GLS Canada (gls-ca)',
+                'gls-at': 'GLS Austria (gls-at)',
+                'gls-us': 'GLS United States (gls-us)',
+                'gls-ie': 'GLS Ireland (gls-ie)',
+                'gls-sk': 'GLS Slovakia (gls-sk)',
+                'gls-si': 'GLS Slovenia (gls-si)',
+                'gls-fr': 'GLS France (gls-fr)',
+                'gls-hu': 'GLS Hungary (gls-hu)'
+            };
+            
+            const tenantHeaderClasses = {
+                'gls-it': 'tenant-header-italy',
+                'gls-de': 'tenant-header-germany',
+                'gls-nl': 'tenant-header-netherlands',
+                'gls-pl': 'tenant-header-poland',
+                'gls-ca': 'tenant-header-canada',
+                'gls-at': 'tenant-header-austria'
+            };
+            
+            // Sort tenants by period 2 total (descending)
+            const sortedTenants = Object.keys(tenantTopicAnalysis).sort((a, b) => 
+                tenantTopicAnalysis[b].period2Total - tenantTopicAnalysis[a].period2Total
+            );
+            
+            sortedTenants.forEach(tenant => {
+                const data = tenantTopicAnalysis[tenant];
+                const tenantName = tenantNames[tenant] || tenant;
+                const headerClass = tenantHeaderClasses[tenant] || 'tenant-header-default';
+                
+                const card = document.createElement('div');
+                card.className = 'tenant-analysis-card';
+                
+                const changePercent = data.period1Total > 0 ? 
+                    ((data.totalChange / data.period1Total) * 100).toFixed(1) : 'N/A';
+                
+                card.innerHTML = `
+                    <div class="tenant-header-card ${headerClass}">
+                        <span>${tenantName}</span>
+                        <span class="tenant-stats">
+                            ${data.period1Total} → ${data.period2Total} cases
+                            <br>
+                            <span style="font-size: 0.8em;">
+                                ${data.totalChange > 0 ? '+' : ''}${data.totalChange} (${changePercent}%)
+                            </span>
+                        </span>
+                    </div>
+                    <table class="tenant-topic-table">
+                        <thead>
+                            <tr>
+                                <th>Topic</th>
+                                <th>Period 1 Cases</th>
+                                <th>Period 1 %</th>
+                                <th>Period 2 Cases</th>
+                                <th>Period 2 %</th>
+                                <th>Case Change</th>
+                                <th>% Point Change</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.topics.map(topic => {
+                                const caseChangeClass = topic.caseChange > 0 ? 'positive-change' : 
+                                                       topic.caseChange < 0 ? 'negative-change' : 'neutral-change';
+                                
+                                const percentChangeClass = topic.percentChange > 0 ? 'positive-change' : 
+                                                          topic.percentChange < 0 ? 'negative-change' : 'neutral-change';
+                                
+                                return `
+                                    <tr>
+                                        <td><code>${topic.topic}</code></td>
+                                        <td>${topic.period1Count}</td>
+                                        <td>${topic.period1Percent.toFixed(1)}%</td>
+                                        <td>${topic.period2Count}</td>
+                                        <td>${topic.period2Percent.toFixed(1)}%</td>
+                                        <td class="${caseChangeClass}">
+                                            ${topic.caseChange > 0 ? '+' : ''}${topic.caseChange}
+                                        </td>
+                                        <td class="${percentChangeClass}">
+                                            ${topic.percentChange > 0 ? '+' : ''}${topic.percentChange.toFixed(2)}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+                
+                container.appendChild(card);
+            });
+        }
+
+        // Utility functions
+        function toggleCollapsible(element) {
+            element.classList.toggle('active');
+            const content = element.nextElementSibling;
+            content.classList.toggle('active');
+            
+            const arrow = element.querySelector('span:last-child');
+            arrow.textContent = content.classList.contains('active') ? '▲' : '▼';
+        }
+
+        function selectAllTags(type) {
+            const containerId = type === 'tenant' ? 'tenantTags' : 'topicTags';
+            const checkboxes = document.getElementById(containerId).querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = true);
+            updateGenerateButton();
+        }
+
+        function deselectAllTags(type) {
+            const containerId = type === 'tenant' ? 'tenantTags' : 'topicTags';
+            const checkboxes = document.getElementById(containerId).querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(cb => cb.checked = false);
+            updateGenerateButton();
+        }
+
+        function updateGenerateButton() {
+            const btn = document.getElementById('generateBtn');
+            const hasSelectedTenants = document.getElementById('tenantTags').querySelectorAll('input[type="checkbox"]:checked').length > 0;
+            const hasSelectedTopics = document.getElementById('topicTags').querySelectorAll('input[type="checkbox"]:checked').length > 0;
+            const hasValidDates = validateDateRanges();
+            
+            btn.disabled = !(hasSelectedTenants && hasSelectedTopics && hasValidDates);
+        }
+
+        function validateDateRanges() {
+            const period1Start = document.getElementById('period1Start').value;
+            const period1End = document.getElementById('period1End').value;
+            const period2Start = document.getElementById('period2Start').value;
+            const period2End = document.getElementById('period2End').value;
+            
+            if (!period1Start || !period1End || !period2Start || !period2End) {
+                return false;
+            }
+            
+            const p1Start = new Date(period1Start);
+            const p1End = new Date(period1End);
+            const p2Start = new Date(period2Start);
+            const p2End = new Date(period2End);
+            
+            return p1Start <= p1End && p2Start <= p2End;
+        }
+
+        function showLoading() {
+            document.getElementById('loadingIndicator').style.display = 'block';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingIndicator').style.display = 'none';
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function showSuccess(message) {
+            const successDiv = document.getElementById('successMessage');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+        }
+
+        function hideMessages() {
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('successMessage').style.display = 'none';
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Bug Report Analysis Tool loaded successfully');
+        });
+    </script>
+</body>
+</html>
