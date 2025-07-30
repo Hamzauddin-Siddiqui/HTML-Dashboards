@@ -709,16 +709,68 @@
                         </div>
                     </div>
 
+                    <!-- Methodology Section -->
+                    <div class="methodology-section">
+                        <button class="collapsible" onclick="toggleCollapsible(this)">
+                            <span>📋 Methodology & Definitions</span>
+                            <span>▼</span>
+                        </button>
+                        <div class="content">
+                            <div style="padding: 20px; background: #f8f9fa; border-radius: 8px; font-size: 14px; line-height: 1.6;">
+                                <h4 style="color: #2c3e50; margin-bottom: 15px;">🔍 How We Calculate App Quality Metrics</h4>
+                                
+                                <div style="margin-bottom: 15px;">
+                                    <strong style="color: #e67e22;">App Quality Cases:</strong>
+                                    <ul style="margin: 5px 0 0 20px; color: #555;">
+                                        <li>Only includes cases with topic tags starting with <code>#app-</code></li>
+                                        <li>Excludes <code>#app-samebug</code> and <code>#app-nonavigation(here)</code> as they don't represent actual app functionality issues</li>
+                                        <li>Focuses on genuine app quality problems that affect user experience</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="margin-bottom: 15px;">
+                                    <strong style="color: #27ae60;">Active Tenants:</strong>
+                                    <ul style="margin: 5px 0 0 20px; color: #555;">
+                                        <li>A tenant is considered "active" for an app version only if they reported <strong>5 or more</strong> app quality bugs for that specific version</li>
+                                        <li>This threshold ensures statistical validity and prevents single-bug outliers from skewing the analysis</li>
+                                        <li>Provides fair comparison between versions with different deployment scales</li>
+                                    </ul>
+                                </div>
+                                
+                                <div style="margin-bottom: 15px;">
+                                    <strong style="color: #8e44ad;">Bugs/Day/Tenant Metric:</strong>
+                                    <ul style="margin: 5px 0 0 20px; color: #555;">
+                                        <li>Primary quality metric that normalizes for both time and tenant activity</li>
+                                        <li>Formula: <code>(App Quality Cases ÷ Operational Days) ÷ Active Tenants</code></li>
+                                        <li>Higher values indicate worse app quality relative to deployment scale</li>
+                                        <li>Enables fair comparison between versions with different lifespans and tenant bases</li>
+                                    </ul>
+                                </div>
+                                
+                                <div>
+                                    <strong style="color: #34495e;">Operational Days:</strong>
+                                    <ul style="margin: 5px 0 0 20px; color: #555;">
+                                        <li>Calculated from first bug report to last bug report for each app version</li>
+                                        <li>Formula: <code>Math.floor((endDate - startDate) / (1000 * 3600 * 24)) + 1</code></li>
+                                        <li>Minimum of 1 day to avoid division by zero</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Performance Table -->
                     <table class="performance-table" id="performanceTable">
                         <thead>
                             <tr>
                                 <th>App Version</th>
-                                <th>Total Valid Cases</th>
+                                <th>App Quality Cases</th>
                                 <th>Start Date</th>
                                 <th>End Date</th>
                                 <th>Operational Days</th>
+                                <th>Active Tenants</th>
                                 <th>Bugs/Day</th>
+                                <th>Bugs/Day/Tenant</th>
                             </tr>
                         </thead>
                         <tbody id="performanceTableBody"></tbody>
@@ -726,7 +778,7 @@
 
                     <!-- Performance Chart -->
                     <div class="chart-container">
-                        <h3 class="chart-title">Bugs per Day by Version</h3>
+                        <h3 class="chart-title">App Quality: Bugs per Day per Tenant by Version</h3>
                         <div class="bar-chart" id="performanceChart"></div>
                     </div>
                 </div>
@@ -812,6 +864,17 @@
                 complete: function(results) {
                     if (results.errors.length > 0) {
                         showError('Error parsing CSV: ' + results.errors[0].message);
+                        hideLoading();
+                        return;
+                    }
+                    
+                    // Validate required columns
+                    const requiredColumns = ['Number', 'App Version', 'Reported At', 'Tags'];
+                    const availableColumns = results.meta.fields || [];
+                    const missingColumns = requiredColumns.filter(col => !availableColumns.includes(col));
+                    
+                    if (missingColumns.length > 0) {
+                        showError(`Required columns missing: ${missingColumns.join(', ')}. Please upload a CSV file with all required columns.`);
                         hideLoading();
                         return;
                     }
@@ -1132,22 +1195,61 @@
             const versionMap = {};
             const latestDate = new Date(Math.max(...validCases.map(row => new Date(row['Reported At']))));
             
+            // Filter cases to only include app quality issues (excluding specific tags)
+            const appQualityCases = validCases.filter(row => {
+                try {
+                    const tags = JSON.parse(row.Tags);
+                    const topicTags = tags.filter(tag => tag.startsWith('#'));
+                    
+                    // Must have at least one #app- tag
+                    const hasAppTag = topicTags.some(tag => tag.startsWith('#app-'));
+                    if (!hasAppTag) return false;
+                    
+                    // Exclude specific app tags that don't represent quality issues
+                    const excludedAppTags = ['#app-samebug', '#app-nonavigation(here)'];
+                    const hasExcludedTag = topicTags.some(tag => excludedAppTags.includes(tag));
+                    if (hasExcludedTag) return false;
+                    
+                    return true;
+                } catch (error) {
+                    return false;
+                }
+            });
+            
             // Group cases by app version and find date ranges
-            validCases.forEach(row => {
+            appQualityCases.forEach(row => {
                 const version = row['App Version'];
                 const reportDate = new Date(row['Reported At']);
                 
                 if (!version || isNaN(reportDate)) return;
                 
+                // Get tenant tag from this case
+                let tenantTag = null;
+                try {
+                    const tags = JSON.parse(row.Tags);
+                    tenantTag = tags.find(tag => tag.startsWith('gls-'));
+                } catch (error) {
+                    return;
+                }
+                
+                if (!tenantTag) return;
+                
                 if (!versionMap[version]) {
                     versionMap[version] = {
                         cases: [],
                         startDate: reportDate,
-                        endDate: reportDate
+                        endDate: reportDate,
+                        tenantCases: {}
                     };
                 }
                 
                 versionMap[version].cases.push(row);
+                
+                // Track cases per tenant
+                if (!versionMap[version].tenantCases[tenantTag]) {
+                    versionMap[version].tenantCases[tenantTag] = 0;
+                }
+                versionMap[version].tenantCases[tenantTag]++;
                 
                 if (reportDate < versionMap[version].startDate) {
                     versionMap[version].startDate = reportDate;
@@ -1161,8 +1263,16 @@
             
             Object.keys(versionMap).forEach(version => {
                 const data = versionMap[version];
-                const operationalDays = Math.max(1, Math.ceil((data.endDate - data.startDate) / (24 * 60 * 60 * 1000)) + 1);
+                const operationalDays = Math.max(1, Math.floor((data.endDate - data.startDate) / (1000 * 3600 * 24)) + 1);
+                
+                // Count active tenants (tenants with 5+ bugs for this version)
+                const activeTenants = Object.keys(data.tenantCases).filter(tenant => 
+                    data.tenantCases[tenant] >= 5
+                ).length;
+                
+                // Calculate bugs per day per tenant (only if we have active tenants)
                 const bugsPerDay = data.cases.length / operationalDays;
+                const bugsPerDayPerTenant = activeTenants > 0 ? bugsPerDay / activeTenants : 0;
                 
                 // Check if version is active (last bug within 3 weeks)
                 const threeWeeksAgo = new Date(latestDate.getTime() - (21 * 24 * 60 * 60 * 1000));
@@ -1174,7 +1284,10 @@
                     endDate: data.endDate,
                     operationalDays,
                     bugsPerDay,
-                    isActive
+                    activeTenants,
+                    bugsPerDayPerTenant,
+                    isActive,
+                    tenantCases: data.tenantCases
                 };
             });
             
@@ -1304,9 +1417,9 @@
             const tbody = document.getElementById('performanceTableBody');
             tbody.innerHTML = '';
             
-            // Sort by bugs per day descending
+            // Sort by bugs per day per tenant (highest to lowest)
             const sortedVersions = Object.keys(performanceData).sort((a, b) => 
-                performanceData[b].bugsPerDay - performanceData[a].bugsPerDay
+                performanceData[b].bugsPerDayPerTenant - performanceData[a].bugsPerDayPerTenant
             );
             
             sortedVersions.forEach(version => {
@@ -1323,7 +1436,9 @@
                     <td>${data.startDate.toLocaleDateString()}</td>
                     <td>${data.endDate.toLocaleDateString()}</td>
                     <td>${data.operationalDays}</td>
+                    <td>${data.activeTenants}</td>
                     <td>${data.bugsPerDay.toFixed(2)}</td>
+                    <td>${data.bugsPerDayPerTenant.toFixed(3)}</td>
                 `;
                 
                 tbody.appendChild(row);
@@ -1334,16 +1449,14 @@
             const container = document.getElementById('performanceChart');
             container.innerHTML = '';
             
-            // Get top 15 versions by bugs/day for the chart
-            const sortedVersions = Object.keys(performanceData)
-                .sort((a, b) => performanceData[b].bugsPerDay - performanceData[a].bugsPerDay)
-                .slice(0, 15);
+            // Sort by version number (oldest to newest) for the chart
+            const sortedVersions = Object.keys(performanceData).sort(compareVersions);
                 
-            const maxBugsPerDay = Math.max(...sortedVersions.map(version => performanceData[version].bugsPerDay));
+            const maxBugsPerDayPerTenant = Math.max(...sortedVersions.map(version => performanceData[version].bugsPerDayPerTenant));
             
             sortedVersions.forEach(version => {
                 const data = performanceData[version];
-                const percentage = (data.bugsPerDay / maxBugsPerDay) * 100;
+                const percentage = maxBugsPerDayPerTenant > 0 ? (data.bugsPerDayPerTenant / maxBugsPerDayPerTenant) * 100 : 0;
                 
                 const barRow = document.createElement('div');
                 barRow.className = 'bar-row';
@@ -1357,7 +1470,7 @@
                     <div class="bar-container">
                         <div class="bar-fill" style="width: ${percentage}%"></div>
                     </div>
-                    <div class="bar-value">${data.bugsPerDay.toFixed(2)}</div>
+                    <div class="bar-value">${data.bugsPerDayPerTenant.toFixed(3)}</div>
                 `;
                 
                 container.appendChild(barRow);
