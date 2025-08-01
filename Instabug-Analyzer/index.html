@@ -1089,9 +1089,30 @@
         }
 
         function generateTopicComparison(period1Cases, period2Cases, selectedTopics) {
+            // Get all topic tags that actually appear in the valid cases
+            const allTopicsInData = new Set();
+            const excludedTags = getSelectedTags('exclusionTags');
+            
+            [...period1Cases, ...period2Cases].forEach(row => {
+                try {
+                    const tags = JSON.parse(row.Tags);
+                    if (Array.isArray(tags)) {
+                        tags.forEach(tag => {
+                            // Include if it's a topic-format tag and not currently excluded
+                            if (tag.startsWith('#') && !excludedTags.has(tag)) {
+                                allTopicsInData.add(tag);
+                            }
+                        });
+                    }
+                } catch (error) {
+                    // Skip invalid JSON
+                }
+            });
+            
             const results = [];
             
-            selectedTopics.forEach(topic => {
+            // Analyze all topics found in the data, not just pre-selected ones
+            allTopicsInData.forEach(topic => {
                 const period1Count = countTagInCases(period1Cases, topic);
                 const period2Count = countTagInCases(period2Cases, topic);
                 
@@ -1114,6 +1135,7 @@
 
         function generateTenantTopicAnalysis(period1Cases, period2Cases, selectedTenants, selectedTopics) {
             const results = {};
+            const excludedTags = getSelectedTags('exclusionTags');
             
             selectedTenants.forEach(tenant => {
                 // Get cases for this tenant in each period
@@ -1135,9 +1157,27 @@
                     }
                 });
                 
+                // Get all topic tags that appear for this tenant
+                const tenantTopicsInData = new Set();
+                [...tenantPeriod1Cases, ...tenantPeriod2Cases].forEach(row => {
+                    try {
+                        const tags = JSON.parse(row.Tags);
+                        if (Array.isArray(tags)) {
+                            tags.forEach(tag => {
+                                // Include if it's a topic-format tag and not currently excluded
+                                if (tag.startsWith('#') && !excludedTags.has(tag)) {
+                                    tenantTopicsInData.add(tag);
+                                }
+                            });
+                        }
+                    } catch (error) {
+                        // Skip invalid JSON
+                    }
+                });
+                
                 const tenantTopics = [];
                 
-                selectedTopics.forEach(topic => {
+                tenantTopicsInData.forEach(topic => {
                     const period1Count = countTagInCases(tenantPeriod1Cases, topic);
                     const period2Count = countTagInCases(tenantPeriod2Cases, topic);
                     
