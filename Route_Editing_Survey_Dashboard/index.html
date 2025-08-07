@@ -563,15 +563,15 @@
                 </div>
                 <div class="metric-card">
                     <h3>Find Useful</h3>
-                    <div class="value">94.4%</div>
+                    <div class="value">100.0%</div>
                 </div>
                 <div class="metric-card">
                     <h3>Very Useful</h3>
-                    <div class="value">77.8%</div>
+                    <div class="value">83.3%</div>
                 </div>
                 <div class="metric-card">
                     <h3>Post-Dispatch Need</h3>
-                    <div class="value">55.6%</div>
+                    <div class="value">7.7%</div>
                 </div>
             </div>
 
@@ -622,12 +622,12 @@
             <div class="summary-box">
                 <h3>🇨🇦 Canada Key Insights</h3>
                 <ul>
-                    <li><strong>Mirrors Netherlands:</strong> Identical 94.4% usefulness and 77.8% "very useful" ratings</li>
-                    <li><strong>Strong Post-Dispatch Need:</strong> 55.6% need edits after route starts, 33.3% both scenarios</li>
-                    <li><strong>Dispatcher-Focused:</strong> 72.2% identify dispatchers as primary users</li>
-                    <li><strong>Highest Feature Demand:</strong> All edit types show 55%+ demand, consistent with Netherlands</li>
+                    <li><strong>Exceeds Netherlands:</strong> Superior 100.0% usefulness and 83.3% "very useful" ratings</li>
+                    <li><strong>Flexible Timing Preference:</strong> 84.6% want both scenarios equally, only 7.7% post-dispatch only</li>
+                    <li><strong>Balanced User Base:</strong> 41.7% dispatchers, 41.7% operations - shared responsibility</li>
+                    <li><strong>Universal Feature Demand:</strong> All edit types show 50%+ demand, led by adding stops (100%) and reordering (91.7%)</li>
                     <li><strong>Customer Service Oriented:</strong> Strong customer service involvement alongside operations</li>
-                    <li><strong>Balanced Reasoning:</strong> Mix of customer requests (77.8%) and operational needs</li>
+                    <li><strong>Priority-Driven Operations:</strong> Led by priority stops (91.7%) and missed parcels (83.3%), with balanced customer/operational needs (66.7% each)</li>
                 </ul>
             </div>
         </div>
@@ -1230,9 +1230,9 @@
         new Chart(caUsefulnessCtx, {
             type: 'doughnut',
             data: {
-                labels: ['Yes, very useful', 'Somewhat useful', 'Not sure'],
+                labels: ['Yes, very useful', 'Somewhat useful'],
                 datasets: [{
-                    data: [77.8, 16.7, 5.6],
+                    data: [83.3, 16.7],
                     backgroundColor: [chartColors.success, chartColors.warning, chartColors.accent5]
                 }]
             },
@@ -1249,7 +1249,7 @@
             data: {
                 labels: ['After start', 'At depot', 'Both equally'],
                 datasets: [{
-                    data: [55.6, 11.1, 33.3],
+                    data: [7.7, 7.7, 84.6],
                     backgroundColor: chartColors.accent3,
                     borderRadius: 8
                 }]
@@ -1268,7 +1268,7 @@
             data: {
                 labels: ['Dispatcher', 'Operations', 'Depot Manager', 'Customer Service'],
                 datasets: [{
-                    data: [72.2, 44.4, 33.3, 27.8],
+                    data: [41.7, 41.7, 16.7, 8.3],
                     backgroundColor: chartColors.accent3,
                     borderRadius: 8
                 }]
@@ -1287,7 +1287,7 @@
             data: {
                 labels: ['Add stops', 'Address change', 'Remove', 'Reorder', 'Mark done'],
                 datasets: [{
-                    data: [83.3, 72.2, 66.7, 61.1, 55.6],
+                    data: [100.0, 91.7, 75.0, 91.7, 50.0],
                     backgroundColor: chartColors.accent3,
                     borderRadius: 8
                 }]
@@ -1306,7 +1306,7 @@
             data: {
                 labels: ['Customer requests', 'Driver issues', 'Priority stops', 'Missed parcels', 'Stop not needed', 'Route optimization'],
                 datasets: [{
-                    data: [77.8, 61.1, 55.6, 44.4, 38.9, 38.9],
+                    data: [66.7, 66.7, 91.7, 83.3, 0.0, 66.7],
                     backgroundColor: chartColors.accent3,
                     borderRadius: 8
                 }]
@@ -1325,7 +1325,7 @@
             data: {
                 labels: ['Unexpected issues', 'Customer changes', 'Driver reports', 'Too late at depot'],
                 datasets: [{
-                    data: [44.1, 33.3, 11.1, 11.1],
+                    data: [45.5, 0.0, 9.1, 36.4],
                     backgroundColor: [chartColors.warning, chartColors.accent1, chartColors.info, chartColors.accent5]
                 }]
             },
@@ -1358,9 +1358,9 @@
         new Chart(plTimingCtx, {
             type: 'bar',
             data: {
-                labels: ['After start', 'At depot', 'Both equally'],
+                labels: ['After start', 'At depot', 'Both equally', 'Not sure'],
                 datasets: [{
-                    data: [51.4, 20.0, 28.6],
+                    data: [14.3, 12.9, 60.0, 7.1],
                     backgroundColor: chartColors.accent2,
                     borderRadius: 8
                 }]
