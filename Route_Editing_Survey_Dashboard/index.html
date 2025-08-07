@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Route Editing Survey Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+
+        .dashboard-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .tabs {
+            display: flex;
+            background: rgba(255,255,255,0.9);
+            border-radius: 15px 15px 0 0;
+            backdrop-filter: blur(10px);
+            overflow-x: auto;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .tab {
+            padding: 15px 25px;
+            cursor: pointer;
+            background: transparent;
+            border: none;
+            color: #34495e;
+            font-size: 16px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        .tab:hover {
+            background: rgba(52, 73, 94, 0.1);
+            color: #2c3e50;
+        }
+
+        .tab.active {
+            background: #34495e;
+            color: white;
+            border-radius: 15px 15px 0 0;
+        }
+
+        .tab-content {
+            display: none;
+            background: white;
+            border-radius: 0 0 15px 15px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+            color: white;
+            padding: 25px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .metric-card h3 {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-bottom: 10px;
+        }
+
+        .metric-card .value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .chart-container h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 300px;
+        }
+
+        .insight-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .insight-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border: 3px solid;
+        }
+
+        .insight-card.usefulness {
+            border-color: #27ae60;
+        }
+
+        .insight-card.timing {
+            border-color: #f39c12;
+        }
+
+        .insight-card.roles {
+            border-color: #3498db;
+        }
+
+        .insight-card h4 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.3rem;
+            font-weight: 600;
+        }
+
+        .insight-icon {
+            font-size: 2rem;
+            margin-bottom: 20px;
+        }
+
+        .progress-ring {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 20px;
+        }
+
+        .progress-ring svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-90deg);
+        }
+
+        .progress-ring circle {
+            fill: none;
+            stroke-width: 8;
+        }
+
+        .progress-ring .background {
+            stroke: #e0e0e0;
+        }
+
+        .progress-ring .progress {
+            stroke-linecap: round;
+            transition: stroke-dasharray 0.3s ease;
+        }
+
+        .progress-ring .usefulness-progress {
+            stroke: #27ae60;
+        }
+
+        .progress-ring .timing-progress {
+            stroke: #f39c12;
+        }
+
+        .progress-ring .roles-progress {
+            stroke: #3498db;
+        }
+
+        .insight-percentage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .feedback-table {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .feedback-table h3 {
+            background: linear-gradient(135deg, #34495e, #2c3e50);
+            color: white;
+            padding: 20px;
+            margin: 0;
+            font-size: 1.3rem;
+        }
+
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .summary-box {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+
+        .summary-box h3 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+        }
+
+        .summary-box ul {
+            line-height: 1.8;
+            color: #34495e;
+        }
+
+        .summary-box li {
+            margin-bottom: 10px;
+        }
+
+        .country-flag {
+            font-size: 1.2em;
+            margin-right: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <h1>🛣️ Route Editing Survey Dashboard</h1>
+            <p style="color: #7f8c8d; font-size: 1.1rem; margin-top: 10px;">Analysis of route editing needs across 5 countries</p>
+        </div>
+
+        <div class="tabs">
+            <button class="tab active" onclick="showTab('overall')">📊 Overall</button>
+            <button class="tab" onclick="showTab('netherlands')">🇳🇱 Netherlands</button>
+            <button class="tab" onclick="showTab('canada')">🇨🇦 Canada</button>
+            <button class="tab" onclick="showTab('poland')">🇵🇱 Poland</button>
+            <button class="tab" onclick="showTab('germany')">🇩🇪 Germany</button>
+            <button class="tab" onclick="showTab('austria')">🇦🇹 Austria</button>
+        </div>
+
+        <!-- Overall Tab -->
+        <div id="overall" class="tab-content active">
+            <div class="summary-box">
+                <h3>🎯 Key Findings</h3>
+                <ul>
+                    <li><strong>Universal Demand:</strong> <strong>92.7%</strong> of respondents find route editing useful across all countries</li>
+                    <li><strong>Post-Dispatch Need:</strong> <strong>52.8%</strong> need edits after drivers have started their routes</li>
+                    <li><strong>Dispatcher-Led:</strong> <strong>72%</strong> identify dispatchers/route planners as primary users</li>
+                    <li><strong>Customer-Driven:</strong> <strong>73.9%</strong> of edits are triggered by customer requests</li>
+                    <li><strong>Full Feature Suite Needed:</strong> All edit types (add, remove, reorder, update) show 57%+ demand</li>
+                    <li><strong>Operational Reality:</strong> <strong>40%</strong> cite unexpected route issues as why post-dispatch editing is essential</li>
+                </ul>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Total Responses</h3>
+                    <div class="value">184</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Countries Analyzed</h3>
+                    <div class="value">5</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Very Useful</h3>
+                    <div class="value">69.7%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Response Rate Q1</h3>
+                    <div class="value">96.7%</div>
+                </div>
+            </div>
+
+            <div class="insight-cards">
+                <div class="insight-card usefulness">
+                    <div class="insight-icon">✅</div>
+                    <h4>Route Editing Usefulness</h4>
+                    <div class="progress-ring">
+                        <svg>
+                            <circle class="background" cx="60" cy="60" r="54"></circle>
+                            <circle class="progress usefulness-progress" cx="60" cy="60" r="54" stroke-dasharray="314.5 339.29"></circle>
+                        </svg>
+                        <div class="insight-percentage">92.7%</div>
+                    </div>
+                    <p>Find route editing useful</p>
+                </div>
+                <div class="insight-card timing">
+                    <div class="insight-icon">🚛</div>
+                    <h4>Post-Dispatch Editing</h4>
+                    <div class="progress-ring">
+                        <svg>
+                            <circle class="background" cx="60" cy="60" r="54"></circle>
+                            <circle class="progress timing-progress" cx="60" cy="60" r="54" stroke-dasharray="179.1 339.29"></circle>
+                        </svg>
+                        <div class="insight-percentage">52.8%</div>
+                    </div>
+                    <p>Need edits after route starts</p>
+                </div>
+                <div class="insight-card roles">
+                    <div class="insight-icon">👨‍💼</div>
+                    <h4>Primary Users</h4>
+                    <div class="progress-ring">
+                        <svg>
+                            <circle class="background" cx="60" cy="60" r="54"></circle>
+                            <circle class="progress roles-progress" cx="60" cy="60" r="54" stroke-dasharray="244.3 339.29"></circle>
+                        </svg>
+                        <div class="insight-percentage">72%</div>
+                    </div>
+                    <p>Dispatchers/Route planners</p>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Q1: Route Editing Usefulness by Country</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="usefulnessChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q2: When to Make Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="timingChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q3: Who Makes Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="rolesChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q4: Types of Edits Needed</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="editsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q5: Reasons for Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="reasonsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q6: Why Edit After Route Start</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="postDispatchChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="feedback-table">
+                <h3>📝 Qualitative Feedback Summary</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Country</th>
+                                <th>Email</th>
+                                <th>Response (Translated)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span class="country-flag">🇵🇱</span>Poland</td>
+                                <td>krzysztof.surlas@o2.pl</td>
+                                <td>"The courier sets up the route himself, packs the packages and then drives in that order because it can't be done in any other way because he can't take out the packages"</td>
+                            </tr>
+                            <tr>
+                                <td><span class="country-flag">🇵🇱</span>Poland</td>
+                                <td>bartlomiej.dworak@gmail.com</td>
+                                <td>"The most important thing for me is the well-being of the courier, so that he is not exhausted after a whole day of work, so that he is alert the next day, not some conveniences for the customer, some tracking and other nonsense."</td>
+                            </tr>
+                            <tr>
+                                <td><span class="country-flag">🇵🇱</span>Poland</td>
+                                <td>bartlomiej.dworak@gmail.com</td>
+                                <td>"This functionality won't help when the courier already has certain habits and knows routes by heart, he won't drive according to some application that issues commands"</td>
+                            </tr>
+                            <tr>
+                                <td><span class="country-flag">🇵🇱</span>Poland</td>
+                                <td>kptas@o2.pl</td>
+                                <td>"As a carrier, I know best how to arrange the route for the courier to be most optimal (bettermile as an automated system does this very poorly)"</td>
+                            </tr>
+                            <tr>
+                                <td><span class="country-flag">🇩🇪</span>Germany</td>
+                                <td>astransnrw@gmail.com</td>
+                                <td>"Yes, that would be very good. But beyond that, I would have an even better suggestion: Maybe you could give drivers the possibility to sort the stops themselves in the future. At DPD we have the possibility that the scanner sorts the stops automatically for us. This is especially helpful for new drivers. But drivers who have been driving the tours for 1-2 years don't follow the sorting suggested by the scanner. They have their own sorting that they drive by. That's faster, better and more productive."</td>
+                            </tr>
+                            </tr>
+                                <td><span class="country-flag">🇩🇪</span>Germany</td>
+                                <td>daniel.sieben@gls-germany.com</td>
+                                <td>"Sure I could improve the RTT ratings with this. But it would only lead to drivers and entrepreneurs relying on me to do their work for them."
+                            </tr>
+                            </tr>
+                                <td><span class="country-flag">🇩🇪</span>Germany</td>
+                                <td>falko85@gmx.net</td>
+                                <td>"The navigation wants to drive through dead ends or through narrow footpaths"</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Netherlands Tab -->
+        <div id="netherlands" class="tab-content">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Total Respondents</h3>
+                    <div class="value">18</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Find Useful</h3>
+                    <div class="value">94.4%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Very Useful</h3>
+                    <div class="value">77.8%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Post-Dispatch Need</h3>
+                    <div class="value">55.6%</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Q1: Usefulness Rating</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="nlUsefulnessChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q2: When to Edit</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="nlTimingChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q3: Who Makes Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="nlRolesChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q4: Types of Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="nlEditsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q5: Reasons for Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="nlReasonsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q6: Why Edit After Route Start</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="nlPostDispatchChart"></canvas>
+                    </div>
+                </div>    
+            </div>
+
+            <div class="summary-box">
+                <h3>🇳🇱 Netherlands Key Insights</h3>
+                <ul>
+                    <li><strong>Strong Adoption Signal:</strong> 94.4% find route editing useful, with 77.8% rating it "very useful"</li>
+                    <li><strong>Balanced Approach:</strong> 55.6% need post-dispatch editing, 27.8% need both scenarios</li>
+                    <li><strong>Dispatcher-Led:</strong> 72.2% identify dispatchers as primary users</li>
+                    <li><strong>Full Feature Demand:</strong> All edit types show 55%+ demand, led by adding stops (83.3%)</li>
+                    <li><strong>Customer-Driven:</strong> 77.8% of edits triggered by customer requests</li>
+                    <li><strong>Operational Focus:</strong> High operations/logistics involvement (55.6%)</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Canada Tab -->
+        <div id="canada" class="tab-content">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Total Respondents</h3>
+                    <div class="value">18</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Find Useful</h3>
+                    <div class="value">94.4%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Very Useful</h3>
+                    <div class="value">77.8%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Post-Dispatch Need</h3>
+                    <div class="value">55.6%</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Q1: Usefulness Rating</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="caUsefulnessChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q2: When to Edit</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="caTimingChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q3: Who Makes Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="caRolesChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q4: Types of Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="caEditsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q5: Reasons for Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="caReasonsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q6: Why Edit After Route Start</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="caPostDispatchChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-box">
+                <h3>🇨🇦 Canada Key Insights</h3>
+                <ul>
+                    <li><strong>Mirrors Netherlands:</strong> Identical 94.4% usefulness and 77.8% "very useful" ratings</li>
+                    <li><strong>Strong Post-Dispatch Need:</strong> 55.6% need edits after route starts, 33.3% both scenarios</li>
+                    <li><strong>Dispatcher-Focused:</strong> 72.2% identify dispatchers as primary users</li>
+                    <li><strong>Highest Feature Demand:</strong> All edit types show 55%+ demand, consistent with Netherlands</li>
+                    <li><strong>Customer Service Oriented:</strong> Strong customer service involvement alongside operations</li>
+                    <li><strong>Balanced Reasoning:</strong> Mix of customer requests (77.8%) and operational needs</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Poland Tab -->
+        <div id="poland" class="tab-content">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Total Respondents</h3>
+                    <div class="value">82</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Find Useful</h3>
+                    <div class="value">93.9%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Very Useful</h3>
+                    <div class="value">73.2%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Post-Dispatch Need</h3>
+                    <div class="value">51.4%</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Q1: Usefulness Rating</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="plUsefulnessChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q2: When to Edit</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="plTimingChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q3: Who Makes Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="plRolesChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q4: Types of Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="plEditsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q5: Reasons for Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="plReasonsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q6: Why Edit After Route Start</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="plPostDispatchChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-box">
+                <h3>🇵🇱 Poland Key Insights</h3>
+                <ul>
+                    <li><strong>Largest Sample:</strong> 82 responses provide most statistically robust insights</li>
+                    <li><strong>Strong Demand:</strong> 93.9% find useful, 73.2% very useful - consistent with other markets</li>
+                    <li><strong>Balanced Timing:</strong> 51.4% post-dispatch, 28.6% both scenarios - represents overall pattern</li>
+                    <li><strong>Dispatcher-Led:</strong> 73.4% dispatcher involvement, highest among all countries</li>
+                    <li><strong>Comprehensive Needs:</strong> All edit types 58%+ demand, led by adding stops (74.6%)</li>
+                    <li><strong>Qualitative Insights:</strong> Strong themes around driver autonomy and welfare priorities</li>
+                </ul>
+            </div>
+
+            <div class="feedback-table">
+                <h3>🇵🇱 Poland - Qualitative Feedback</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Original Polish</th>
+                                <th>English Translation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>krzysztof.surlas@o2.pl</td>
+                                <td>"kurier sam sobie ustala trasę, pakuje paczki i potem jedzie w tej kolejności bo w innej się nie da bo nie wyjmie paczek"</td>
+                                <td>"The courier sets up the route himself, packs the packages and then drives in that order because it can't be done in any other way because he can't take out the packages"</td>
+                            </tr>
+                            <tr>
+                                <td>bartlomiej.dworak@gmail.com</td>
+                                <td>"Najważniejsze jest dla mnie dobra kuriera, żeby nie było wypompowany po całym dniu pracy, by był przytomny na drugi dzień, nie jakieś ułatwienia dla klienta"</td>
+                                <td>"The most important thing for me is the well-being of the courier, so that he is not exhausted after a whole day of work, so that he is alert the next day, not some conveniences for the customer"</td>
+                            </tr>
+                            <tr>
+                                <td>bartlomiej.dworak@gmail.com</td>
+                                <td>"Nic ta funkcjonalność nie da kiedy kurier już ma pewne przyzwyczajenia i umierają na pamięć"</td>
+                                <td>"This functionality won't help when the courier already has certain habits and knows routes by heart"</td>
+                            </tr>
+                            <tr>
+                                <td>kptas@o2.pl</td>
+                                <td>"Jako przewoźnik najlepiej wiem jak ułożyć trasę by była najbardziej optymalna (bettermile jako zautomatyzowany system robi to bardzo słabo)"</td>
+                                <td>"As a carrier, I know best how to arrange the route for the courier to be most optimal (bettermile as an automated system does this very poorly)"</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Germany Tab -->
+        <div id="germany" class="tab-content">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Total Respondents</h3>
+                    <div class="value">61</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Find Useful</h3>
+                    <div class="value">85%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Very Useful</h3>
+                    <div class="value">65%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Post-Dispatch Need</h3>
+                    <div class="value">47.5%</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Q1: Usefulness Rating</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="deUsefulnessChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q2: When to Edit</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="deTimingChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q3: Who Makes Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="deRolesChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q4: Types of Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="deEditsChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q5: Reasons for Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="deReasonsChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h3>Q6: Why Edit After Route Start</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="dePostDispatchChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-box">
+                <h3>🇩🇪 Germany Key Insights</h3>
+                <ul>
+                    <li><strong>Moderate Enthusiasm:</strong> 85% useful (lowest among countries), 65% very useful</li>
+                    <li><strong>Less Post-Dispatch Focus:</strong> 47.5% post-dispatch need, 26.2% both scenarios</li>
+                    <li><strong>Dispatcher-Centric:</strong> 73.2% dispatcher involvement, strong operational focus</li>
+                    <li><strong>Operational Emphasis:</strong> Lower customer service involvement (26.8% vs 34% average)</li>
+                    <li><strong>Comprehensive Needs:</strong> All edit types 56%+ demand, led by adding stops (77.4%)</li>
+                    <li><strong>Quality Focus:</strong> Strong emphasis on performance and system comparisons</li>
+                </ul>
+            </div>
+
+            <div class="feedback-table">
+                <h3>🇩🇪 Germany - Qualitative Feedback</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Email</th>
+                                <th>Original German</th>
+                                <th>English Translation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>astransnrw@gmail.com</td>
+                                <td>"Ja, das wäre sehr gut. Aber darüber hinaus hätte ich noch einen besseren Vorschlag: Vielleicht könnten Sie in Zukunft den Fahrern die Möglichkeit geben, die Stopps selbst zu sortieren. Bei DPD haben wir die Möglichkeit, dass der Scanner die Stopps automatisch für uns sortiert. Das ist besonders hilfreich für neue Fahrer. Aber Fahrer, die die Touren schon seit 1–2 Jahren fahren, folgen nicht der vom Scanner vorgeschlagenen Sortierung. Sie haben ihre eigene Sortierung, nach der sie fahren. Das ist schneller, besser und produktiver."</td>
+                                <td>"Yes, that would be very good. But beyond that, I would have an even better suggestion: Maybe you could give drivers the possibility to sort the stops themselves in the future. At DPD we have the possibility that the scanner sorts the stops automatically for us. This is especially helpful for new drivers. But drivers who have been driving the tours for 1-2 years don't follow the sorting suggested by the scanner. They have their own sorting that they drive by. That's faster, better and more productive."</td>
+                            </tr>
+                            <tr>
+                                <td>daniel.sieben@gls-germany.com</td>
+                                <td>"Klar könnte ich damit die RTT Bewertungen verbesser. Aber Es würde nur dazu führen, dass sich Fahrer und Unternehmer dartauf verlassen, dass ich deren Arbeit für sie mache."</td>
+                                <td>"Sure I could improve the RTT ratings with this. But it would only lead to drivers and entrepreneurs relying on me to do their work for them."</td>
+                            </tr>
+                            <tr>
+                                <td>falko85@gmx.net</td>
+                                <td>"Das Navi möchte durch Sackgassen fahren oder durch schmale fußwege"</td>
+                                <td>"The navigation wants to drive through dead ends or through narrow footpaths"</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Austria Tab -->
+        <div id="austria" class="tab-content">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <h3>Total Respondents</h3>
+                    <div class="value">5</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Find Useful</h3>
+                    <div class="value">100%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Very Useful</h3>
+                    <div class="value">80%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Post-Dispatch Need</h3>
+                    <div class="value">60%</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <h3>Q1: Usefulness Rating</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="atUsefulnessChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q2: When to Edit</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="atTimingChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q3: Who Makes Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="atRolesChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-container">
+                    <h3>Q4: Types of Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="atEditsChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h3>Q5: Reasons for Edits</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="atReasonsChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <h3>Q6: Why Edit After Route Start</h3>
+                    <div class="chart-wrapper">
+                        <canvas id="atPostDispatchChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="summary-box">
+                <h3>🇦🇹 Austria Key Insights</h3>
+                <ul>
+                    <li><strong>Highest Enthusiasm:</strong> 100% find useful, 80% very useful - strongest signal</li>
+                    <li><strong>Strong Post-Dispatch Focus:</strong> 60% post-dispatch need, 40% both scenarios</li>
+                    <li><strong>Dispatcher-Led:</strong> 80% dispatcher involvement, highest percentage</li>
+                    <li><strong>Comprehensive Demand:</strong> High demand across all edit types</li>
+                    <li><strong>Unexpected Issues Focus:</strong> 60% emphasize unexpected route issues (vs 40% average)</li>
+                    <li><strong>Small Sample Note:</strong> Only 5 responses - insights indicative but limited statistical validity</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching functionality
+        function showTab(tabName) {
+            // Hide all tab contents
+            const tabContents = document.querySelectorAll('.tab-content');
+            tabContents.forEach(content => content.classList.remove('active'));
+            
+            // Remove active class from all tabs
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(tab => tab.classList.remove('active'));
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.add('active');
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+        }
+
+        // Chart colors
+        const chartColors = {
+            primary: '#3498db',
+            secondary: '#34495e', 
+            success: '#27ae60',
+            warning: '#f39c12',
+            info: '#2980b9',
+            accent1: '#e74c3c',
+            accent2: '#9b59b6',
+            accent3: '#1abc9c',
+            accent4: '#e67e22',
+            accent5: '#95a5a6'
+        };
+
+        // Overall Charts
+        
+        // Q1: Usefulness by Country
+        const usefulnessCtx = document.getElementById('usefulnessChart').getContext('2d');
+        new Chart(usefulnessCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Austria', 'Netherlands', 'Canada', 'Poland', 'Germany'],
+                datasets: [{
+                    label: '% Finding Useful',
+                    data: [100, 94.4, 94.4, 93.9, 85.0],
+                    backgroundColor: [
+                        chartColors.success,
+                        chartColors.primary,
+                        chartColors.accent3,
+                        chartColors.accent2,
+                        chartColors.secondary
+                    ],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, max: 100, ticks: { callback: value => value + '%' } }
+                }
+            }
+        });
+
+        // Q2: When to Edit
+        const timingCtx = document.getElementById('timingChart').getContext('2d');
+        new Chart(timingCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['After driver started', 'While at depot', 'Both equally'],
+                datasets: [{
+                    data: [52.8, 18.0, 29.2],
+                    backgroundColor: [chartColors.warning, chartColors.accent5, chartColors.info]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // Q3: Who Makes Edits
+        const rolesCtx = document.getElementById('rolesChart').getContext('2d');
+        new Chart(rolesCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Dispatcher/\nRoute Planner', 'Operations/\nLogistics Lead', 'Customer\nService', 'Depot\nManager'],
+                datasets: [{
+                    label: 'Percentage',
+                    data: [72.0, 46.7, 34.0, 30.0],
+                    backgroundColor: chartColors.primary,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, max: 80, ticks: { callback: value => value + '%' } }
+                }
+            }
+        });
+
+        // Q4: Types of Edits
+        const editsCtx = document.getElementById('editsChart').getContext('2d');
+        new Chart(editsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Adding stops', 'Address changes', 'Remove stops', 'Reorder stops', 'Mark completed'],
+                datasets: [{
+                    label: 'Percentage',
+                    data: [77.8, 68.1, 61.8, 61.1, 56.9],
+                    backgroundColor: [
+                        chartColors.success,
+                        chartColors.warning,
+                        chartColors.accent1,
+                        chartColors.accent2,
+                        chartColors.accent4
+                    ],
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, max: 85, ticks: { callback: value => value + '%' } }
+                }
+            }
+        });
+
+        // Q5: Reasons for Edits
+        const reasonsCtx = document.getElementById('reasonsChart').getContext('2d');
+        new Chart(reasonsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Customer\nrequests', 'Driver\nissues', 'Priority\nstops', 'Missed\nparcels', 'Stop not\nneeded', 'Route\noptimization'],
+                datasets: [{
+                    label: 'Percentage',
+                    data: [73.9, 57.7, 52.8, 45.8, 42.3, 38.7],
+                    backgroundColor: chartColors.accent1,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    y: { beginAtZero: true, max: 80, ticks: { callback: value => value + '%' } }
+                }
+            }
+        });
+
+        // Q6: Post-dispatch reasons
+        const postDispatchCtx = document.getElementById('postDispatchChart').getContext('2d');
+        new Chart(postDispatchCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Unexpected issues', 'Customer changes', 'Driver reports', 'Too late at depot'],
+                datasets: [{
+                    data: [40.1, 32.1, 16.8, 10.9],
+                    backgroundColor: [
+                        chartColors.warning,
+                        chartColors.accent1,
+                        chartColors.info,
+                        chartColors.accent5
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // Country-specific charts (simplified versions)
+        
+        // Netherlands charts
+        const nlUsefulnessCtx = document.getElementById('nlUsefulnessChart').getContext('2d');
+        new Chart(nlUsefulnessCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Yes, very useful', 'Somewhat useful', 'Not useful'],
+                datasets: [{
+                    data: [77.8, 16.7, 5.6],
+                    backgroundColor: [chartColors.success, chartColors.warning, chartColors.accent1]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        const nlTimingCtx = document.getElementById('nlTimingChart').getContext('2d');
+        new Chart(nlTimingCtx, {
+            type: 'bar',
+            data: {
+                labels: ['After start', 'At depot', 'Both equally'],
+                datasets: [{
+                    data: [55.6, 16.7, 27.8],
+                    backgroundColor: chartColors.primary,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 70 } }
+            }
+        });
+
+        const nlRolesCtx = document.getElementById('nlRolesChart').getContext('2d');
+        new Chart(nlRolesCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Dispatcher', 'Operations', 'Customer Service', 'Depot Manager'],
+                datasets: [{
+                    data: [72.2, 55.6, 33.3, 27.8],
+                    backgroundColor: chartColors.primary,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 80 } }
+            }
+        });
+
+        const nlEditsCtx = document.getElementById('nlEditsChart').getContext('2d');
+        new Chart(nlEditsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Add stops', 'Address change', 'Remove', 'Reorder', 'Mark done'],
+                datasets: [{
+                    data: [83.3, 72.2, 66.7, 61.1, 55.6],
+                    backgroundColor: chartColors.primary,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 90 } }
+            }
+        });
+
+        const nlReasonsCtx = document.getElementById('nlReasonsChart').getContext('2d');
+        new Chart(nlReasonsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Customer requests', 'Driver issues', 'Priority stops', 'Missed parcels', 'Stop not needed', 'Route optimization'],
+                datasets: [{
+                    data: [77.8, 61.1, 55.6, 50.0, 44.4, 38.9],
+                    backgroundColor: chartColors.primary,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 90 } }
+            }
+        });
+
+        const nlPostDispatchCtx = document.getElementById('nlPostDispatchChart').getContext('2d');
+        new Chart(nlPostDispatchCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Unexpected issues', 'Customer changes', 'Driver reports', 'Too late at depot'],
+                datasets: [{
+                    data: [44.1, 33.3, 16.7, 5.6],
+                    backgroundColor: [chartColors.warning, chartColors.accent1, chartColors.info, chartColors.accent5]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // Canada charts (same data as Netherlands)
+        const caUsefulnessCtx = document.getElementById('caUsefulnessChart').getContext('2d');
+        new Chart(caUsefulnessCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Yes, very useful', 'Somewhat useful', 'Not sure'],
+                datasets: [{
+                    data: [77.8, 16.7, 5.6],
+                    backgroundColor: [chartColors.success, chartColors.warning, chartColors.accent5]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        const caTimingCtx = document.getElementById('caTimingChart').getContext('2d');
+        new Chart(caTimingCtx, {
+            type: 'bar',
+            data: {
+                labels: ['After start', 'At depot', 'Both equally'],
+                datasets: [{
+                    data: [55.6, 11.1, 33.3],
+                    backgroundColor: chartColors.accent3,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 70 } }
+            }
+        });
+
+        const caRolesCtx = document.getElementById('caRolesChart').getContext('2d');
+        new Chart(caRolesCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Dispatcher', 'Operations', 'Depot Manager', 'Customer Service'],
+                datasets: [{
+                    data: [72.2, 44.4, 33.3, 27.8],
+                    backgroundColor: chartColors.accent3,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 80 } }
+            }
+        });
+
+        const caEditsCtx = document.getElementById('caEditsChart').getContext('2d');
+        new Chart(caEditsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Add stops', 'Address change', 'Remove', 'Reorder', 'Mark done'],
+                datasets: [{
+                    data: [83.3, 72.2, 66.7, 61.1, 55.6],
+                    backgroundColor: chartColors.accent3,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 90 } }
+            }
+        });
+
+        const caReasonsCtx = document.getElementById('caReasonsChart').getContext('2d');
+        new Chart(caReasonsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Customer requests', 'Driver issues', 'Priority stops', 'Missed parcels', 'Stop not needed', 'Route optimization'],
+                datasets: [{
+                    data: [77.8, 61.1, 55.6, 44.4, 38.9, 38.9],
+                    backgroundColor: chartColors.accent3,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 90 } }
+            }
+        });
+
+        const caPostDispatchCtx = document.getElementById('caPostDispatchChart').getContext('2d');
+        new Chart(caPostDispatchCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Unexpected issues', 'Customer changes', 'Driver reports', 'Too late at depot'],
+                datasets: [{
+                    data: [44.1, 33.3, 11.1, 11.1],
+                    backgroundColor: [chartColors.warning, chartColors.accent1, chartColors.info, chartColors.accent5]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // Poland charts
+        const plUsefulnessCtx = document.getElementById('plUsefulnessChart').getContext('2d');
+        new Chart(plUsefulnessCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Yes, very useful', 'Somewhat useful', 'Not useful', 'Not sure'],
+                datasets: [{
+                    data: [73.2, 20.7, 4.9, 1.2],
+                    backgroundColor: [chartColors.success, chartColors.warning, chartColors.accent1, chartColors.accent5]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        const plTimingCtx = document.getElementById('plTimingChart').getContext('2d');
+        new Chart(plTimingCtx, {
+            type: 'bar',
+            data: {
+                labels: ['After start', 'At depot', 'Both equally'],
+                datasets: [{
+                    data: [51.4, 20.0, 28.6],
+                    backgroundColor: chartColors.accent2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 70 } }
+            }
+        });
+
+        const plRolesCtx = document.getElementById('plRolesChart').getContext('2d');
+        new Chart(plRolesCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Dispatcher', 'Operations', 'Customer Service', 'Depot Manager'],
+                datasets: [{
+                    data: [73.4, 46.9, 35.9, 29.7],
+                    backgroundColor: chartColors.accent2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 80 } }
+            }
+        });
+
+        const plEditsCtx = document.getElementById('plEditsChart').getContext('2d');
+        new Chart(plEditsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Add stops', 'Address change', 'Remove', 'Reorder', 'Mark done'],
+                datasets: [{
+                    data: [74.6, 68.3, 61.9, 61.9, 58.7],
+                    backgroundColor: chartColors.accent2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 80 } }
+            }
+        });
+
+        const plReasonsCtx = document.getElementById('plReasonsChart').getContext('2d');
+        new Chart(plReasonsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Customer requests', 'Driver issues', 'Priority stops', 'Missed parcels', 'Stop not needed', 'Route optimization'],
+                datasets: [{
+                    data: [73.0, 57.1, 52.4, 46.0, 42.9, 39.7],
+                    backgroundColor: chartColors.accent2,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 80 } }
+            }
+        });
+
+        const plPostDispatchCtx = document.getElementById('plPostDispatchChart').getContext('2d');
+        new Chart(plPostDispatchCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Unexpected issues', 'Customer changes', 'Driver reports', 'Too late at depot'],
+                datasets: [{
+                    data: [37.5, 31.3, 18.8, 12.5],
+                    backgroundColor: [chartColors.warning, chartColors.accent1, chartColors.info, chartColors.accent5]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // Germany charts
+        const deUsefulnessCtx = document.getElementById('deUsefulnessChart').getContext('2d');
+        new Chart(deUsefulnessCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Yes, very useful', 'Somewhat useful', 'Not sure', 'Not useful'],
+                datasets: [{
+                    data: [65.0, 20.0, 10.0, 5.0],
+                    backgroundColor: [chartColors.success, chartColors.warning, chartColors.accent5, chartColors.accent1]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        const deTimingCtx = document.getElementById('deTimingChart').getContext('2d');
+        new Chart(deTimingCtx, {
+            type: 'bar',
+            data: {
+                labels: ['After start', 'Both equally', 'At depot', 'Not sure'],
+                datasets: [{
+                    data: [47.5, 26.2, 16.4, 9.8],
+                    backgroundColor: chartColors.secondary,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 50 } }
+            }
+        });
+
+        const deRolesCtx = document.getElementById('deRolesChart').getContext('2d');
+        new Chart(deRolesCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Dispatcher', 'Operations', 'Depot Manager', 'Customer Service'],
+                datasets: [{
+                    data: [73.2, 46.4, 32.1, 26.8],
+                    backgroundColor: chartColors.secondary,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 80 } }
+            }
+        });
+
+        const deEditsCtx = document.getElementById('deEditsChart').getContext('2d');
+        new Chart(deEditsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Add stops', 'Address change', 'Reorder', 'Remove', 'Mark done'],
+                datasets: [{
+                    data: [77.4, 66.0, 62.3, 60.4, 56.6],
+                    backgroundColor: chartColors.secondary,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 80 } }
+            }
+        });
+
+        const deReasonsCtx = document.getElementById('deReasonsChart').getContext('2d');
+        new Chart(deReasonsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Customer requests', 'Driver issues', 'Priority stops', 'Missed parcels', 'Stop not needed', 'Route optimization'],
+                datasets: [{
+                    data: [75.0, 57.7, 51.9, 46.2, 42.3, 38.5],
+                    backgroundColor: chartColors.secondary,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 80 } }
+            }
+        });
+
+        const dePostDispatchCtx = document.getElementById('dePostDispatchChart').getContext('2d');
+        new Chart(dePostDispatchCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Unexpected issues', 'Customer changes', 'Driver reports', 'Too late at depot'],
+                datasets: [{
+                    data: [40.8, 32.7, 16.3, 10.2],
+                    backgroundColor: [chartColors.warning, chartColors.accent1, chartColors.info, chartColors.accent5]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // Austria charts
+        const atUsefulnessCtx = document.getElementById('atUsefulnessChart').getContext('2d');
+        new Chart(atUsefulnessCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Yes, very useful', 'Somewhat useful'],
+                datasets: [{
+                    data: [80.0, 20.0],
+                    backgroundColor: [chartColors.success, chartColors.warning]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        const atTimingCtx = document.getElementById('atTimingChart').getContext('2d');
+        new Chart(atTimingCtx, {
+            type: 'bar',
+            data: {
+                labels: ['After start', 'Both equally'],
+                datasets: [{
+                    data: [60.0, 40.0],
+                    backgroundColor: chartColors.accent4,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 70 } }
+            }
+        });
+
+        const atRolesCtx = document.getElementById('atRolesChart').getContext('2d');
+        new Chart(atRolesCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Dispatcher', 'Operations', 'Depot Manager'],
+                datasets: [{
+                    data: [80.0, 60.0, 40.0],
+                    backgroundColor: chartColors.accent4,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 90 } }
+            }
+        });
+
+        const atEditsCtx = document.getElementById('atEditsChart').getContext('2d');
+        new Chart(atEditsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Add stops', 'Address change', 'Reorder', 'Remove', 'Mark done'],
+                datasets: [{
+                    data: [80.0, 80.0, 60.0, 60.0, 40.0],
+                    backgroundColor: chartColors.accent4,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 90 } }
+            }
+        });
+
+        const atReasonsCtx = document.getElementById('atReasonsChart').getContext('2d');
+        new Chart(atReasonsCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Customer requests', 'Driver issues', 'Priority stops', 'Missed parcels', 'Stop not needed', 'Route optimization'],
+                datasets: [{
+                    data: [80.0, 60.0, 40.0, 40.0, 20.0, 20.0],
+                    backgroundColor: chartColors.accent4,
+                    borderRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, max: 90 } }
+            }
+        });
+
+        const atPostDispatchCtx = document.getElementById('atPostDispatchChart').getContext('2d');
+        new Chart(atPostDispatchCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Unexpected issues', 'Customer changes', 'Driver reports', 'Too late at depot'],
+                datasets: [{
+                    data: [60.0, 20.0, 20.0],
+                    backgroundColor: [chartColors.warning, chartColors.accent1, chartColors.info, chartColors.accent5]
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+    </script>
+</body>
+</html>
