@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Monitoring Survey Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f1117; --bg-card: #1a1d27; --bg-elevated: #252830; --border: #2e3140;
+            --text-primary: #e8eaed; --text-secondary: #9aa0b0; --text-muted: #6b7280;
+            --accent-blue: #4f8ff7; --accent-blue-dim: rgba(79,143,247,0.15);
+            --accent-green: #34d399; --accent-green-dim: rgba(52,211,153,0.15);
+            --accent-amber: #fbbf24; --accent-amber-dim: rgba(251,191,36,0.15);
+            --accent-rose: #f472b6; --accent-rose-dim: rgba(244,114,182,0.15);
+            --accent-purple: #a78bfa; --accent-purple-dim: rgba(167,139,250,0.15);
+            --accent-cyan: #22d3ee; --accent-cyan-dim: rgba(34,211,238,0.15);
+            --radius: 12px; --radius-sm: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'DM Sans', -apple-system, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+        .dashboard { max-width: 1440px; margin: 0 auto; padding: 32px 24px; }
+        .header { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+        .header-top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+        .header-badge { background: var(--accent-blue-dim); color: var(--accent-blue); padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+        .header h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.5px; }
+        .header p { color: var(--text-secondary); font-size: 0.95rem; margin-top: 4px; }
+        .tabs { display: flex; gap: 4px; background: var(--bg-card); border-radius: var(--radius); padding: 4px; margin-bottom: 28px; overflow-x: auto; border: 1px solid var(--border); }
+        .tab { padding: 10px 20px; cursor: pointer; background: transparent; border: none; color: var(--text-secondary); font-family: inherit; font-size: 0.875rem; font-weight: 500; border-radius: var(--radius-sm); transition: all 0.2s; white-space: nowrap; }
+        .tab:hover { color: var(--text-primary); background: var(--bg-elevated); }
+        .tab.active { background: var(--accent-blue); color: #fff; font-weight: 600; }
+        .tab-content { display: none; } .tab-content.active { display: block; }
+        .section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .section-title .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 28px; }
+        .metric-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; position: relative; overflow: hidden; }
+        .metric-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: var(--radius) var(--radius) 0 0; }
+        .metric-card:nth-child(1)::before { background: var(--accent-blue); }
+        .metric-card:nth-child(2)::before { background: var(--accent-green); }
+        .metric-card:nth-child(3)::before { background: var(--accent-amber); }
+        .metric-card:nth-child(4)::before { background: var(--accent-purple); }
+        .metric-card:nth-child(5)::before { background: var(--accent-rose); }
+        .metric-card:nth-child(6)::before { background: var(--accent-cyan); }
+        .metric-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .metric-value { font-size: 1.85rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; line-height: 1; }
+        .metric-sub { font-size: 0.8rem; color: var(--text-secondary); margin-top: 6px; }
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+        .chart-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+        .chart-card .chart-sub { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; }
+        .chart-wrap { position: relative; height: 280px; } .chart-wrap.tall { height: 340px; }
+        .findings-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 28px; }
+        .findings-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; }
+        .finding-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .finding-item:last-child { border-bottom: none; }
+        .finding-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+        .finding-text { font-size: 0.9rem; line-height: 1.5; color: var(--text-secondary); }
+        .finding-text strong { color: var(--text-primary); }
+        .hl { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 0.85rem; }
+        .hl-blue { color: var(--accent-blue); } .hl-green { color: var(--accent-green); } .hl-amber { color: var(--accent-amber); } .hl-rose { color: var(--accent-rose); } .hl-purple { color: var(--accent-purple); }
+        .feedback-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 28px; }
+        .feedback-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .feedback-header h3 { font-size: 0.95rem; font-weight: 600; }
+        .feedback-count { background: var(--accent-blue-dim); color: var(--accent-blue); padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 16px; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; background: var(--bg-elevated); border-bottom: 1px solid var(--border); white-space: nowrap; }
+        td { padding: 12px 16px; font-size: 0.85rem; color: var(--text-secondary); border-bottom: 1px solid var(--border); vertical-align: top; }
+        td.orig-text { font-style: italic; color: var(--text-muted); font-size: 0.8rem; max-width: 400px; }
+        td.trans-text { max-width: 400px; }
+        tr:hover td { background: rgba(79,143,247,0.03); }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .tag-gls { background: var(--accent-blue-dim); color: var(--accent-blue); }
+        .tag-sub { background: var(--accent-amber-dim); color: var(--accent-amber); }
+        .tag-country { background: var(--bg-elevated); color: var(--text-secondary); font-size: 0.7rem; }
+        .completion-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 28px; }
+        .completion-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
+        .completion-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between; }
+        .completion-bar { height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; }
+        .completion-fill { height: 100%; border-radius: 3px; background: var(--accent-blue); }
+        .note-box { background: var(--accent-amber-dim); border: 1px solid rgba(251,191,36,0.2); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 0.82rem; color: var(--accent-amber); margin-bottom: 20px; line-height: 1.5; }
+        @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } .chart-wrap { height: 240px; } .metrics-row { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <div class="header">
+        <div class="header-top">
+            <span class="header-badge">Survey Results</span>
+            <span class="header-badge" style="background:var(--accent-green-dim);color:var(--accent-green);">206 Respondents</span>
+        </div>
+        <h1>Live Monitoring in Back Office</h1>
+        <p>Survey on conflict detection &amp; live issue notifications &mdash; Jan&ndash;Feb 2026 across 5 countries</p>
+    </div>
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('overall',this)">Overall</button>
+        <button class="tab" onclick="showTab('germany',this)">&#x1F1E9;&#x1F1EA; Germany</button>
+        <button class="tab" onclick="showTab('austria',this)">&#x1F1E6;&#x1F1F9; Austria</button>
+        <button class="tab" onclick="showTab('poland',this)">&#x1F1F5;&#x1F1F1; Poland</button>
+        <button class="tab" onclick="showTab('netherlands',this)">&#x1F1F3;&#x1F1F1; Netherlands</button>
+        <button class="tab" onclick="showTab('canada',this)">&#x1F1E8;&#x1F1E6; Canada</button>
+        <button class="tab" onclick="showTab('segment',this)">GLS vs Sub</button>
+    </div>
+    <div id="overall" class="tab-content active">
+        <div class="findings-card">
+            <h3>&#x1F4CC; Key Findings</h3>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-blue-dim)">&#x1F4CA;</div><div class="finding-text"><strong>High Engagement:</strong> <span class="hl hl-blue">87.4%</span> of respondents monitor live tours at least a few times a day. Subcontractors monitor even more actively (<span class="hl hl-green">94.6%</span>) than GLS staff (<span class="hl hl-amber">81.1%</span>).</div></div>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-green-dim)">&#x2705;</div><div class="finding-text"><strong>Strong Demand:</strong> <span class="hl hl-green">89.5%</span> of users say automatic live issue detection would be useful or very useful &mdash; highest in Poland (<span class="hl hl-green">93.8%</span>).</div></div>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-amber-dim)">&#x26A0;&#xFE0F;</div><div class="finding-text"><strong>Top Issue:</strong> &ldquo;Long breaks or delays&rdquo; is the #1 notification priority (<span class="hl hl-amber">62.2%</span>), followed by &ldquo;Parcel scanned far from delivery address&rdquo; (<span class="hl hl-amber">53.5%</span>).</div></div>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-purple-dim)">&#x1F500;</div><div class="finding-text"><strong>GLS vs Sub Split:</strong> When issues arise, GLS staff split between calling the driver (<span class="hl hl-blue">50.8%</span>) and informing the subcontractor (<span class="hl hl-purple">42.9%</span>), while subcontractors overwhelmingly call the driver directly (<span class="hl hl-green">85.5%</span>).</div></div>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-rose-dim)">&#x1F4DD;</div><div class="finding-text"><strong>Top Open Requests:</strong> Users want wrong-location scan alerts, the ability to message drivers via Bettermile, better filtering by conflict type, and continued tracking after route completion.</div></div>
+        </div>
+        <div class="metrics-row">
+            <div class="metric-card"><div class="metric-label">Total Respondents</div><div class="metric-value">206</div><div class="metric-sub">5 countries</div></div>
+            <div class="metric-card"><div class="metric-label">GLS Internal</div><div class="metric-value">110</div><div class="metric-sub">53.4% of total</div></div>
+            <div class="metric-card"><div class="metric-label">Subcontractors</div><div class="metric-value">96</div><div class="metric-sub">46.6% of total</div></div>
+            <div class="metric-card"><div class="metric-label">Completion Rate</div><div class="metric-value">60%</div><div class="metric-sub">124 completed all Qs</div></div>
+            <div class="metric-card"><div class="metric-label">Positive on Auto-Detection</div><div class="metric-value">89.5%</div><div class="metric-sub">111 of 124 respondents</div></div>
+            <div class="metric-card"><div class="metric-label">Daily+ Monitors</div><div class="metric-value">87.4%</div><div class="metric-sub">173 of 198 respondents</div></div>
+        </div>
+        <div class="charts-grid">
+            <div class="chart-card"><h3>Respondents by Country</h3><div class="chart-sub">n = 206</div><div class="chart-wrap"><canvas id="chartCountry"></canvas></div></div>
+            <div class="chart-card"><h3>Role Distribution</h3><div class="chart-sub">n = 206 &middot; Top roles shown</div><div class="chart-wrap"><canvas id="chartRole"></canvas></div></div>
+            <div class="chart-card"><h3>Monitoring Frequency</h3><div class="chart-sub">n = 198</div><div class="chart-wrap"><canvas id="chartFreqOverall"></canvas></div></div>
+            <div class="chart-card"><h3>Monitoring Frequency by Country</h3><div class="chart-sub">n = 198</div><div class="chart-wrap"><canvas id="chartFreqCountry"></canvas></div></div>
+            <div class="chart-card"><h3>Live Issues &mdash; Notification Preferences</h3><div class="chart-sub">n = 127 &middot; Multi-select</div><div class="chart-wrap tall"><canvas id="chartIssuesOverall"></canvas></div></div>
+            <div class="chart-card"><h3>First Action When Issue Detected</h3><div class="chart-sub">n = 125</div><div class="chart-wrap"><canvas id="chartActionOverall"></canvas></div></div>
+            <div class="chart-card"><h3>Usefulness of Automatic Detection</h3><div class="chart-sub">n = 124</div><div class="chart-wrap"><canvas id="chartUsefulOverall"></canvas></div></div>
+            <div class="chart-card"><h3>Usefulness &mdash; Positive Rate by Country</h3><div class="chart-sub">% who said Very useful or Useful</div><div class="chart-wrap"><canvas id="chartUsefulCountry"></canvas></div></div>
+        </div>
+        <div class="note-box">&#x26A0;&#xFE0F; In the NL/Canada survey, &ldquo;App offline/GPS lost&rdquo; and &ldquo;Parcel scanned far from delivery address&rdquo; were combined into a single option. Respondents who selected it are counted under both categories for cross-country comparison.</div>
+        <div class="feedback-section">
+            <div class="feedback-header"><h3>Open-Text Feedback</h3><span class="feedback-count">38 substantive responses to &ldquo;Anything else that would make live monitoring easier for you?&rdquo;</span></div>
+            <div class="table-wrap"><table><thead><tr><th>Country</th><th>Type</th><th>Original</th><th>Translation</th></tr></thead><tbody id="tbodyFeedback"></tbody></table></div>
+        </div>
+        <div class="section-title"><span class="dot" style="background:var(--accent-blue)"></span> Response Completion by Question</div>
+        <div class="completion-row">
+            <div class="completion-item"><div class="completion-label"><span>Q1 Role</span><span>206 (100%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:100%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Q2 Frequency</span><span>198 (96.1%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:96.1%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Q3 Conflict Info</span><span>134 (65.0%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:65%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Q4 Live Issues</span><span>127 (61.7%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:61.7%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Q5 First Action</span><span>125 (60.7%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:60.7%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Q6 Usefulness</span><span>124 (60.2%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:60.2%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Q7 Anything Else</span><span>61 (29.6%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:29.6%"></div></div></div>
+        </div>
+    </div>
+    <div id="germany" class="tab-content"></div>
+    <div id="austria" class="tab-content"></div>
+    <div id="poland" class="tab-content"></div>
+    <div id="netherlands" class="tab-content"></div>
+    <div id="canada" class="tab-content"></div>
+    <div id="segment" class="tab-content"></div>
+</div>
+<script>
+var DATA = {
+    countries: { Germany:{total:95,gls:51,sub:44,flag:'\u{1F1E9}\u{1F1EA}'}, Austria:{total:8,gls:2,sub:6,flag:'\u{1F1E6}\u{1F1F9}'}, Poland:{total:53,gls:29,sub:24,flag:'\u{1F1F5}\u{1F1F1}'}, Netherlands:{total:26,gls:15,sub:11,flag:'\u{1F1F3}\u{1F1F1}'}, Canada:{total:24,gls:13,sub:11,flag:'\u{1F1E8}\u{1F1E6}'} },
+    frequency: {
+        labels: ['All day / continuously','A few times a day','Only when there\'s a problem','Rarely'],
+        overall:[67,106,19,6], Germany:[28,51,10,3], Austria:[0,5,2,0], Poland:[14,31,3,3], Netherlands:[14,8,4,0], Canada:[11,11,0,0],
+        GLS:[34,52,15,5], Sub:[33,54,4,1],
+        n:{overall:198,Germany:92,Austria:7,Poland:51,Netherlands:26,Canada:22,GLS:106,Sub:92}
+    },
+    issues: {
+        labels:['Long breaks or delays','Parcel scanned far from address','Missed or failed collection','Parcel left without permission','Missed or failed deliveries','ParcelShop \u2013 No 1st attempt','Wrong route/deviation','App offline/GPS lost','Driver not starting on time'],
+        overall:[79,68,60,56,48,41,41,38,24], Germany:[38,46,31,28,20,23,21,15,12], Austria:[4,3,3,3,3,2,2,1,1], Poland:[17,9,13,11,10,9,10,12,7], Netherlands:[12,6,6,7,6,3,4,6,2], Canada:[8,4,7,7,9,4,4,4,2],
+        GLS:[37,38,30,32,20,24,19,18,12], Sub:[42,30,30,24,28,17,22,20,12],
+        n:{overall:127,Germany:60,Austria:5,Poland:32,Netherlands:16,Canada:14,GLS:64,Sub:63}
+    },
+    action: {
+        labels:['Call/message driver','Inform subcontractor','Nothing','Other'],
+        overall:[85,30,4,6], Germany:[34,22,2,1], Austria:[3,1,1,0], Poland:[29,2,1,0], Netherlands:[11,4,0,1], Canada:[8,1,0,4],
+        GLS:[32,27,2,2], Sub:[53,3,2,4],
+        n:{overall:125,Germany:59,Austria:5,Poland:32,Netherlands:16,Canada:13,GLS:63,Sub:62}
+    },
+    usefulness: {
+        labels:['Very useful','Useful','Slightly useful','Not useful'],
+        overall:[55,56,11,2], Germany:[30,23,5,1], Austria:[3,1,1,0], Poland:[12,18,2,0], Netherlands:[3,10,2,0], Canada:[7,4,1,1],
+        GLS:[27,27,7,1], Sub:[28,29,4,1],
+        n:{overall:124,Germany:59,Austria:5,Poland:32,Netherlands:15,Canada:13,GLS:62,Sub:62}
+    },
+    roles: { labels:['Subcontractor','Driver Support','Depot Manager','Operations','Transport Mgr','Claims','Foreman','Other roles'], overall:[71,67,16,7,7,7,4,27] },
+    feedback: [
+        {c:'Germany',t:'SUB',orig:'M\u00f6glicherweise die Kommunikation durch den Scanner an den Fahrer, da einige nicht immer aufs Handy schauen',trans:'Possibly communication via the scanner to the driver, since some don\'t always check their phone'},
+        {c:'Germany',t:'SUB',orig:'Wenn der Ort der Zustellung weit (mehr als 200m) abweicht',trans:'When the delivery location deviates significantly (more than 200m)'},
+        {c:'Germany',t:'SUB',orig:'Wenn ich auf Karte meine Touren beobachte, dass diese Punkte welche sich bewegen, quasi nummeriert, dass ich zum Beispiel sehe, nicht nur gr\u00fcne Punkt sondern Tour Nummer',trans:'When watching tours on the map, the moving dots should be numbered \u2014 I want to see tour numbers, not just green dots'},
+        {c:'Germany',t:'SUB',orig:'Zus\u00e4tzlich die Live-Zustellung wie bei Unique, so kann jeder neue Fahrer z.B. alle Stopps wegklicken und man denkt, er hat keine Probleme bei der Zustellung',trans:'Live delivery tracking like in Unique, so a new driver can click away all stops and you\'d think there are no delivery problems'},
+        {c:'Germany',t:'GLS',orig:'Wenn man Zusteller \u00fcber das Bettermile eine Nachricht oder Info zukommen lassen kann',trans:'If you could send a message or info to the driver via Bettermile'},
+        {c:'Germany',t:'GLS',orig:'Ja, wenn das Fenster mit der Karte nicht immer wieder von allein zum Ausgang zur\u00fcckgeht, es muss jedes Mal von vorne anfangen den Ort oder die Tour zu suchen',trans:'If the map window didn\'t keep resetting to default \u2014 I have to search for the location or tour from the start each time'},
+        {c:'Germany',t:'SUB',orig:'Doppelte Stopps sehen, Komplette Empf\u00e4nger Adresse mit Name und Ort',trans:'See duplicate stops, complete recipient address with name and location'},
+        {c:'Germany',t:'SUB',orig:'Eine M\u00f6glichkeit zu sehen welcher Kunde eine AE hat und welcher nicht',trans:'An option to see which customer has a drop-off permission and which doesn\'t'},
+        {c:'Germany',t:'SUB',orig:'Nachrichten zu senden zu den Bettermile Tablets',trans:'Ability to send messages to the Bettermile tablets'},
+        {c:'Germany',t:'GLS',orig:'Genaueres GPS-Tracking der Fahrzeuge',trans:'More precise GPS tracking of vehicles'},
+        {c:'Germany',t:'GLS',orig:'Eine Filterm\u00f6glichkeit nach den Hilfssymbolen die ihr eingef\u00fchrt habt',trans:'A filter option for the helper symbols that were introduced'},
+        {c:'Germany',t:'GLS',orig:'Gerne m\u00f6chte ich au\u00dferdem wissen, ob der Fahrer das Paket ohne Unterschrift einfach abgelegt hat, ohne zu klingeln, und wo genau das Paket platziert wurde',trans:'I\'d also like to know if the driver just left the parcel without a signature, without ringing, and where exactly it was placed'},
+        {c:'Austria',t:'GLS',orig:'Eventuell die Route sehen wie er gefahren ist',trans:'Possibly see the route the driver actually drove'},
+        {c:'Poland',t:'SUB',orig:'Podgl\u0105d pozycji kuriera na \u017cywo',trans:'Live preview of driver position'},
+        {c:'Poland',t:'GLS',orig:'Mo\u017cliwo\u015b\u0107 wprowadzania optymalizacji lub zmian u ka\u017cdego kuriera. Oraz mo\u017cliwo\u015b\u0107 u\u0142o\u017cenia r\u0119cznie trasy',trans:'Ability to introduce optimizations or changes for each driver. And the ability to manually arrange routes'},
+        {c:'Poland',t:'SUB',orig:'Wsp\u00f3\u0142czynnik paczek do stop\u00f3w w analizie',trans:'Parcel-to-stop ratio in analysis'},
+        {c:'Poland',t:'SUB',orig:'Mo\u017cliwo\u015b\u0107 aktualizacji i rotowania punktami z mojej strony',trans:'Ability to update and rotate points from my side'},
+        {c:'Poland',t:'SUB',orig:'\u017beby po zako\u0144czeniu ostatniego stopa GPS pokazywa\u0142 jak kurier dojedzie do depotu',trans:'After the last stop, GPS should show the driver\'s route back to the depot'},
+        {c:'Poland',t:'GLS',orig:'Mo\u017cliwo\u015b\u0107 zdalnej zmiany adres\u00f3w, zdalne ustalanie aplikacji, trasy',trans:'Remote address changes, remote app configuration, route management'},
+        {c:'Poland',t:'GLS',orig:'Lista okien czasowych',trans:'List of time windows'},
+        {c:'Poland',t:'GLS',orig:'W celu wyja\u015bnienia reklamacji chcia\u0142bym dostawa\u0107 powiadomienia za ka\u017cdym razem jak Kurier dor\u0119czy paczk\u0119 pod innym adresem ni\u017c z listu przewozowego',trans:'For claims purposes, I\'d like notifications whenever a driver delivers to a different address than on the waybill'},
+        {c:'Poland',t:'GLS',orig:'Opisy status\u00f3w przy zako\u0144czonych paczkach czy zosta\u0142a dor\u0119czona, czy kurier tylko podjecha\u0142 pod adres, ale nie nabi\u0142 statusu negatywnego',trans:'Status descriptions for completed parcels \u2014 was it delivered, or did the driver just drive to the address without recording a negative status'},
+        {c:'Poland',t:'GLS',orig:'Jako\u015b\u0107 \u015bledzenia',trans:'Tracking quality'},
+        {c:'Poland',t:'SUB',orig:'Szybsza od\u015bwie\u017canie',trans:'Faster refresh rate'},
+        {c:'Netherlands',t:'SUB',orig:'Het zou mooi zijn dat je de routes over elkaar heen kan zien voor nog effici\u00ebnter werken',trans:'It would be nice to overlay routes on top of each other for more efficient work'},
+        {c:'Netherlands',t:'GLS',orig:'Improvement functions in the app, like enforcing of setting starting point, get rid of optimize button...',trans:'Improvement functions in the app, like enforcing of setting starting point, get rid of optimize button...'},
+        {c:'Canada',t:'SUB',orig:'We need more control of the back office to adjust stop order and location',trans:'We need more control of the back office to adjust stop order and location'},
+        {c:'Canada',t:'SUB',orig:'I would like to know if the \'pickups\' are included in the \'waypoints\'',trans:'I would like to know if the \'pickups\' are included in the \'waypoints\''},
+        {c:'Canada',t:'SUB',orig:'Maybe being able to see more information in regards to the packages, such as shipper name, and piece counts on shipments.',trans:'Maybe being able to see more information in regards to the packages, such as shipper name, and piece counts on shipments.'},
+        {c:'Canada',t:'GLS',orig:'When routes are completed, drivers disappear from monitoring and records need to be viewed through other, less optimized tools. Flagging drivers who are scanning deliveries but not logged in and tracked on Bettermile would improve visibility gaps.',trans:'When routes are completed, drivers disappear from monitoring and records need to be viewed through other, less optimized tools. Flagging drivers who are scanning deliveries but not logged in and tracked on Bettermile would improve visibility gaps.'},
+        {c:'Canada',t:'SUB',orig:'Deliveries and Pickups should have different color codes, that makes it easy drivers to identify',trans:'Deliveries and Pickups should have different color codes, that makes it easy for drivers to identify'}
+    ]
+};
+
+Chart.defaults.color = '#9aa0b0';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.font.size = 12;
+
+var C = { blue:'#4f8ff7', green:'#34d399', amber:'#fbbf24', rose:'#f472b6', purple:'#a78bfa', cyan:'#22d3ee', slate:'#64748b', indigo:'#6366f1', orange:'#f97316' };
+var gridOpts = { color:'rgba(255,255,255,0.06)' };
+function pct(arr,n){ return arr.map(function(v){ return +(v/n*100).toFixed(1); }); }
+
+function makeChart(id, cfg) {
+    try {
+        var el = document.getElementById(id);
+        if (!el) { console.error('Canvas not found:', id); return null; }
+        return new Chart(el, cfg);
+    } catch(e) { console.error('Chart error ' + id, e); return null; }
+}
+
+// 1. Respondents by Country (grouped bars)
+makeChart('chartCountry', {
+    type:'bar',
+    data:{ labels:['Germany','Austria','Poland','Netherlands','Canada'], datasets:[
+        {label:'GLS',data:[51,2,29,15,13],backgroundColor:C.blue,borderRadius:4},
+        {label:'Subcontractor',data:[44,6,24,11,11],backgroundColor:C.amber,borderRadius:4}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top',labels:{boxWidth:12,padding:14}}}, scales:{x:{grid:gridOpts},y:{beginAtZero:true,grid:gridOpts}} }
+});
+
+// 2. Role Distribution (horizontal bar)
+makeChart('chartRole', {
+    type:'bar',
+    data:{ labels:DATA.roles.labels, datasets:[{label:'Count',data:DATA.roles.overall,backgroundColor:[C.amber,C.blue,C.green,C.purple,C.cyan,C.rose,C.slate,'#475569'],borderRadius:4}] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{beginAtZero:true,grid:gridOpts},y:{grid:{display:false}}} }
+});
+
+// 3. Monitoring Frequency (doughnut)
+makeChart('chartFreqOverall', {
+    type:'doughnut',
+    data:{ labels:DATA.frequency.labels, datasets:[{data:DATA.frequency.overall,backgroundColor:[C.green,C.blue,C.amber,C.slate],borderWidth:0,hoverOffset:8}] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:10}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/198*100).toFixed(1)+'%)';}}}}}
+});
+
+// 4. Frequency by Country (stacked %)
+var fCountries = ['Germany','Austria','Poland','Netherlands','Canada'];
+makeChart('chartFreqCountry', {
+    type:'bar',
+    data:{ labels:fCountries, datasets:DATA.frequency.labels.map(function(lab,i){
+        return {label:lab, data:fCountries.map(function(c){return +(DATA.frequency[c][i]/DATA.frequency.n[c]*100).toFixed(1);}), backgroundColor:[C.green,C.blue,C.amber,C.slate][i], borderRadius:2};
+    })},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom',labels:{boxWidth:10,font:{size:10},padding:8}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw+'%';}}}}, scales:{x:{stacked:true,grid:gridOpts},y:{stacked:true,beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}}} }
+});
+
+// 5. Live Issues (horizontal bar)
+makeChart('chartIssuesOverall', {
+    type:'bar',
+    data:{ labels:DATA.issues.labels, datasets:[{label:'%',data:pct(DATA.issues.overall,DATA.issues.n.overall),backgroundColor:[C.green,C.blue,C.amber,C.rose,C.purple,C.cyan,C.slate,C.indigo,C.orange],borderRadius:4}] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ctx.raw+'% ('+DATA.issues.overall[ctx.dataIndex]+' of '+DATA.issues.n.overall+')';}}}}, scales:{x:{beginAtZero:true,max:80,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}} }
+});
+
+// 6. First Action (doughnut)
+makeChart('chartActionOverall', {
+    type:'doughnut',
+    data:{ labels:DATA.action.labels, datasets:[{data:DATA.action.overall,backgroundColor:[C.blue,C.amber,C.slate,C.rose],borderWidth:0,hoverOffset:8}] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:10}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/125*100).toFixed(1)+'%)';}}}}}
+});
+
+// 7. Usefulness (doughnut)
+makeChart('chartUsefulOverall', {
+    type:'doughnut',
+    data:{ labels:DATA.usefulness.labels, datasets:[{data:DATA.usefulness.overall,backgroundColor:[C.green,C.blue,C.amber,C.rose],borderWidth:0,hoverOffset:8}] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:10}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/124*100).toFixed(1)+'%)';}}}}}
+});
+
+// 8. Usefulness positive by country
+makeChart('chartUsefulCountry', {
+    type:'bar',
+    data:{ labels:['Germany','Austria','Poland','Netherlands','Canada'], datasets:[{label:'% Positive',data:[89.8,80.0,93.8,86.7,84.6],backgroundColor:[C.blue,C.rose,C.purple,C.amber,C.cyan],borderRadius:6}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{grid:gridOpts},y:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}}} }
+});
+
+// Feedback table
+(function(){
+    var tbody = document.getElementById('tbodyFeedback');
+    DATA.feedback.forEach(function(f){
+        var tr = document.createElement('tr');
+        var isEn = (f.orig === f.trans);
+        var origCell = isEn
+            ? '<td class="trans-text">'+f.orig+'</td><td class="trans-text">\u2014</td>'
+            : '<td class="orig-text">'+f.orig+'</td><td class="trans-text">'+f.trans+'</td>';
+        tr.innerHTML = '<td><span class="tag tag-country">'+(DATA.countries[f.c]?DATA.countries[f.c].flag:'')+' '+f.c+'</span></td>'
+            +'<td><span class="tag '+(f.t==='GLS'?'tag-gls':'tag-sub')+'">'+f.t+'</span></td>'
+            +origCell;
+        tbody.appendChild(tr);
+    });
+})();
+
+// Tab switching
+function showTab(id, btn) {
+    document.querySelectorAll('.tab-content').forEach(function(el){ el.classList.remove('active'); });
+    document.querySelectorAll('.tab').forEach(function(el){ el.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+    if (['germany','austria','poland','netherlands','canada'].indexOf(id) !== -1) initCountryTab(id);
+    if (id === 'segment') initSegmentTab();
+}
+
+// Country tab builder
+var countryInited = {};
+function initCountryTab(tabId) {
+    var nameMap = {germany:'Germany',austria:'Austria',poland:'Poland',netherlands:'Netherlands',canada:'Canada'};
+    var name = nameMap[tabId];
+    if (countryInited[tabId]) return;
+    countryInited[tabId] = true;
+    var c = DATA.countries[name], freqN = DATA.frequency.n[name], freqD = DATA.frequency[name];
+    var issN = DATA.issues.n[name], issD = DATA.issues[name];
+    var actN = DATA.action.n[name], actD = DATA.action[name];
+    var usN = DATA.usefulness.n[name], usD = DATA.usefulness[name];
+    var posRate = usN ? ((usD[0]+usD[1])/usN*100).toFixed(1) : 'N/A';
+    var container = document.getElementById(tabId);
+    container.innerHTML =
+        '<div class="metrics-row"><div class="metric-card"><div class="metric-label">Total Respondents</div><div class="metric-value">'+c.total+'</div><div class="metric-sub">GLS: '+c.gls+' \u00b7 Sub: '+c.sub+'</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Freq. Responses</div><div class="metric-value">'+freqN+'</div><div class="metric-sub">of '+c.total+'</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Issues Responses</div><div class="metric-value">'+issN+'</div><div class="metric-sub">of '+c.total+'</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Usefulness Responses</div><div class="metric-value">'+usN+'</div><div class="metric-sub">'+posRate+'% positive</div></div></div>'
+        +'<div class="charts-grid">'
+        +'<div class="chart-card"><h3>Monitoring Frequency</h3><div class="chart-sub">n = '+freqN+'</div><div class="chart-wrap"><canvas id="c_'+tabId+'_freq"></canvas></div></div>'
+        +'<div class="chart-card"><h3>Live Issue Preferences</h3><div class="chart-sub">n = '+issN+' \u00b7 Multi-select</div><div class="chart-wrap tall"><canvas id="c_'+tabId+'_iss"></canvas></div></div>'
+        +'<div class="chart-card"><h3>First Action</h3><div class="chart-sub">n = '+actN+'</div><div class="chart-wrap"><canvas id="c_'+tabId+'_act"></canvas></div></div>'
+        +'<div class="chart-card"><h3>Usefulness of Auto-Detection</h3><div class="chart-sub">n = '+usN+'</div><div class="chart-wrap"><canvas id="c_'+tabId+'_use"></canvas></div></div>'
+        +'</div>'
+        +'<div class="feedback-section"><div class="feedback-header"><h3>'+c.flag+' '+name+' \u2014 Open Feedback</h3></div>'
+        +'<div class="table-wrap"><table><thead><tr><th>Type</th><th>Original</th><th>Translation</th></tr></thead><tbody id="fb_'+tabId+'"></tbody></table></div></div>';
+
+    setTimeout(function(){
+        makeChart('c_'+tabId+'_freq', {type:'doughnut',data:{labels:DATA.frequency.labels,datasets:[{data:freqD,backgroundColor:[C.green,C.blue,C.amber,C.slate],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:8}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+(freqN?' ('+(ctx.raw/freqN*100).toFixed(1)+'%)':'');}}}}}});
+        if(issN>0) makeChart('c_'+tabId+'_iss', {type:'bar',data:{labels:DATA.issues.labels,datasets:[{label:'%',data:pct(issD,issN),backgroundColor:[C.green,C.blue,C.amber,C.rose,C.purple,C.cyan,C.slate,C.indigo,C.orange],borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ctx.raw+'% ('+issD[ctx.dataIndex]+' of '+issN+')';}}}},scales:{x:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}}}});
+        if(actN>0) makeChart('c_'+tabId+'_act', {type:'doughnut',data:{labels:DATA.action.labels,datasets:[{data:actD,backgroundColor:[C.blue,C.amber,C.slate,C.rose],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:8}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/actN*100).toFixed(1)+'%)';}}}}}});
+        if(usN>0) makeChart('c_'+tabId+'_use', {type:'doughnut',data:{labels:DATA.usefulness.labels,datasets:[{data:usD,backgroundColor:[C.green,C.blue,C.amber,C.rose],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:8}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/usN*100).toFixed(1)+'%)';}}}}}});
+        var fbBody = document.getElementById('fb_'+tabId);
+        var cfb = DATA.feedback.filter(function(f){return f.c===name;});
+        if(!cfb.length) fbBody.innerHTML='<tr><td colspan="3" style="text-align:center;padding:24px;color:var(--text-muted)">No substantive open-text feedback for this country.</td></tr>';
+        else cfb.forEach(function(f){var tr=document.createElement('tr');var isEn=(f.orig===f.trans);tr.innerHTML='<td><span class="tag '+(f.t==='GLS'?'tag-gls':'tag-sub')+'">'+f.t+'</span></td>'+(isEn?'<td class="trans-text">'+f.orig+'</td><td class="trans-text">\u2014</td>':'<td class="orig-text">'+f.orig+'</td><td class="trans-text">'+f.trans+'</td>');fbBody.appendChild(tr);});
+    }, 60);
+}
+
+// Segment tab
+var segInited = false;
+function initSegmentTab() {
+    if(segInited) return; segInited=true;
+    var el = document.getElementById('segment');
+    el.innerHTML =
+        '<div class="findings-card"><h3>\u{1F500} GLS Internal vs Subcontractor \u2014 Key Differences</h3>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-blue-dim)">\u{1F465}</div><div class="finding-text"><strong>Composition:</strong> <span class="hl hl-blue">110</span> GLS internal staff (mostly Driver Support and Depot Managers) vs <span class="hl hl-amber">96</span> subcontractors.</div></div>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-green-dim)">\u{1F4E1}</div><div class="finding-text"><strong>Monitoring intensity:</strong> Subcontractors monitor more actively \u2014 <span class="hl hl-green">94.6%</span> daily+ vs <span class="hl hl-blue">81.1%</span> for GLS. GLS staff are more likely to check only when there\'s a problem (<span class="hl hl-amber">14.2%</span> vs <span class="hl hl-amber">4.3%</span>).</div></div>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-purple-dim)">\u{1F3AF}</div><div class="finding-text"><strong>Priority differences:</strong> GLS staff prioritize \u201cParcel scanned far from address\u201d (<span class="hl hl-blue">59.4%</span>) while subcontractors\' #1 is \u201cLong breaks or delays\u201d (<span class="hl hl-amber">66.7%</span>). Subcontractors care more about \u201cMissed or failed deliveries\u201d (<span class="hl hl-amber">44.4%</span> vs <span class="hl hl-blue">31.2%</span>).</div></div>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-rose-dim)">\u{1F4DE}</div><div class="finding-text"><strong>Response behavior:</strong> GLS staff split between calling driver (<span class="hl hl-blue">50.8%</span>) and informing the subcontractor (<span class="hl hl-blue">42.9%</span>). Subcontractors overwhelmingly call/message the driver (<span class="hl hl-amber">85.5%</span>).</div></div>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-green-dim)">\u{1F4A1}</div><div class="finding-text"><strong>Usefulness perception:</strong> Very similar \u2014 <span class="hl hl-blue">87.1%</span> positive (GLS) vs <span class="hl hl-green">91.9%</span> positive (Sub).</div></div>'
+        +'</div>'
+        +'<div class="metrics-row">'
+        +'<div class="metric-card"><div class="metric-label">GLS Internal</div><div class="metric-value">110</div><div class="metric-sub">53.4% of total</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Subcontractors</div><div class="metric-value">96</div><div class="metric-sub">46.6% of total</div></div>'
+        +'<div class="metric-card"><div class="metric-label">GLS Daily+</div><div class="metric-value">81.1%</div><div class="metric-sub">86 of 106</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Sub Daily+</div><div class="metric-value">94.6%</div><div class="metric-sub">87 of 92</div></div>'
+        +'<div class="metric-card"><div class="metric-label">GLS Positive</div><div class="metric-value">87.1%</div><div class="metric-sub">54 of 62</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Sub Positive</div><div class="metric-value">91.9%</div><div class="metric-sub">57 of 62</div></div>'
+        +'</div>'
+        +'<div class="charts-grid">'
+        +'<div class="chart-card"><h3>Monitoring Frequency \u2014 GLS vs Sub</h3><div class="chart-sub">GLS n=106 \u00b7 Sub n=92</div><div class="chart-wrap"><canvas id="seg_freq"></canvas></div></div>'
+        +'<div class="chart-card"><h3>Live Issue Preferences \u2014 GLS vs Sub</h3><div class="chart-sub">GLS n=64 \u00b7 Sub n=63</div><div class="chart-wrap tall"><canvas id="seg_iss"></canvas></div></div>'
+        +'<div class="chart-card"><h3>First Action \u2014 GLS vs Sub</h3><div class="chart-sub">GLS n=63 \u00b7 Sub n=62</div><div class="chart-wrap"><canvas id="seg_act"></canvas></div></div>'
+        +'<div class="chart-card"><h3>Usefulness \u2014 GLS vs Sub</h3><div class="chart-sub">GLS n=62 \u00b7 Sub n=62</div><div class="chart-wrap"><canvas id="seg_use"></canvas></div></div>'
+        +'</div>';
+    setTimeout(function(){
+        makeChart('seg_freq',{type:'bar',data:{labels:DATA.frequency.labels,datasets:[{label:'GLS',data:pct(DATA.frequency.GLS,DATA.frequency.n.GLS),backgroundColor:C.blue,borderRadius:4},{label:'Sub',data:pct(DATA.frequency.Sub,DATA.frequency.n.Sub),backgroundColor:C.amber,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw+'%';}}}},scales:{x:{grid:gridOpts},y:{beginAtZero:true,max:70,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}}}}});
+        makeChart('seg_iss',{type:'bar',data:{labels:DATA.issues.labels,datasets:[{label:'GLS',data:pct(DATA.issues.GLS,DATA.issues.n.GLS),backgroundColor:C.blue,borderRadius:4},{label:'Sub',data:pct(DATA.issues.Sub,DATA.issues.n.Sub),backgroundColor:C.amber,borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw+'%';}}}},scales:{x:{beginAtZero:true,max:80,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}}}});
+        makeChart('seg_act',{type:'bar',data:{labels:DATA.action.labels,datasets:[{label:'GLS',data:pct(DATA.action.GLS,DATA.action.n.GLS),backgroundColor:C.blue,borderRadius:4},{label:'Sub',data:pct(DATA.action.Sub,DATA.action.n.Sub),backgroundColor:C.amber,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw+'%';}}}},scales:{x:{grid:gridOpts},y:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}}}}});
+        makeChart('seg_use',{type:'bar',data:{labels:DATA.usefulness.labels,datasets:[{label:'GLS',data:pct(DATA.usefulness.GLS,DATA.usefulness.n.GLS),backgroundColor:C.blue,borderRadius:4},{label:'Sub',data:pct(DATA.usefulness.Sub,DATA.usefulness.n.Sub),backgroundColor:C.amber,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw+'%';}}}},scales:{x:{grid:gridOpts},y:{beginAtZero:true,max:55,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}}}}});
+    },60);
+}
+</script></body></html>
