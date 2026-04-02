@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Landing Page Feedback Survey Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f1117; --bg-card: #1a1d27; --bg-elevated: #252830; --border: #2e3140;
+            --text-primary: #e8eaed; --text-secondary: #9aa0b0; --text-muted: #6b7280;
+            --accent-blue: #4f8ff7; --accent-blue-dim: rgba(79,143,247,0.15);
+            --accent-green: #34d399; --accent-green-dim: rgba(52,211,153,0.15);
+            --accent-amber: #fbbf24; --accent-amber-dim: rgba(251,191,36,0.15);
+            --accent-rose: #f472b6; --accent-rose-dim: rgba(244,114,182,0.15);
+            --accent-purple: #a78bfa; --accent-purple-dim: rgba(167,139,250,0.15);
+            --accent-cyan: #22d3ee; --accent-cyan-dim: rgba(34,211,238,0.15);
+            --radius: 12px; --radius-sm: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'DM Sans', -apple-system, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+        .dashboard { max-width: 1440px; margin: 0 auto; padding: 32px 24px; }
+        .header { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+        .header-top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+        .header-badge { background: var(--accent-blue-dim); color: var(--accent-blue); padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+        .header h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.5px; }
+        .header p { color: var(--text-secondary); font-size: 0.95rem; margin-top: 4px; }
+        .tabs { display: flex; gap: 4px; background: var(--bg-card); border-radius: var(--radius); padding: 4px; margin-bottom: 28px; overflow-x: auto; border: 1px solid var(--border); }
+        .tab { padding: 10px 20px; cursor: pointer; background: transparent; border: none; color: var(--text-secondary); font-family: inherit; font-size: 0.875rem; font-weight: 500; border-radius: var(--radius-sm); transition: all 0.2s; white-space: nowrap; }
+        .tab:hover { color: var(--text-primary); background: var(--bg-elevated); }
+        .tab.active { background: var(--accent-blue); color: #fff; font-weight: 600; }
+        .tab-content { display: none; } .tab-content.active { display: block; }
+        .section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .section-title .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 28px; }
+        .metric-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; position: relative; overflow: hidden; }
+        .metric-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: var(--radius) var(--radius) 0 0; }
+        .metric-card:nth-child(1)::before { background: var(--accent-blue); }
+        .metric-card:nth-child(2)::before { background: var(--accent-green); }
+        .metric-card:nth-child(3)::before { background: var(--accent-amber); }
+        .metric-card:nth-child(4)::before { background: var(--accent-purple); }
+        .metric-card:nth-child(5)::before { background: var(--accent-rose); }
+        .metric-card:nth-child(6)::before { background: var(--accent-cyan); }
+        .metric-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .metric-value { font-size: 1.85rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; line-height: 1; }
+        .metric-sub { font-size: 0.8rem; color: var(--text-secondary); margin-top: 6px; }
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+        .chart-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+        .chart-card .chart-sub { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; }
+        .chart-wrap { position: relative; height: 280px; } .chart-wrap.tall { height: 340px; }
+        .findings-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 28px; }
+        .findings-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; }
+        .finding-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .finding-item:last-child { border-bottom: none; }
+        .finding-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+        .finding-text { font-size: 0.9rem; line-height: 1.5; color: var(--text-secondary); }
+        .finding-text strong { color: var(--text-primary); }
+        .hl { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 0.85rem; }
+        .hl-blue { color: var(--accent-blue); } .hl-green { color: var(--accent-green); } .hl-amber { color: var(--accent-amber); } .hl-rose { color: var(--accent-rose); } .hl-purple { color: var(--accent-purple); }
+        .feedback-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 28px; }
+        .feedback-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .feedback-header h3 { font-size: 0.95rem; font-weight: 600; }
+        .feedback-count { background: var(--accent-blue-dim); color: var(--accent-blue); padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 16px; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; background: var(--bg-elevated); border-bottom: 1px solid var(--border); white-space: nowrap; }
+        td { padding: 12px 16px; font-size: 0.85rem; color: var(--text-secondary); border-bottom: 1px solid var(--border); vertical-align: top; }
+        td.orig-text { font-style: italic; color: var(--text-muted); font-size: 0.8rem; max-width: 400px; }
+        td.trans-text { max-width: 400px; }
+        tr:hover td { background: rgba(79,143,247,0.03); }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .tag-gls { background: var(--accent-blue-dim); color: var(--accent-blue); }
+        .tag-sub { background: var(--accent-amber-dim); color: var(--accent-amber); }
+        .tag-country { background: var(--bg-elevated); color: var(--text-secondary); font-size: 0.7rem; }
+        .tag-q { background: var(--accent-purple-dim); color: var(--accent-purple); font-size: 0.7rem; margin-left: 4px; }
+        .completion-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 28px; }
+        .completion-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
+        .completion-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between; }
+        .completion-bar { height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; }
+        .completion-fill { height: 100%; border-radius: 3px; background: var(--accent-blue); }
+        .note-box { background: var(--accent-amber-dim); border: 1px solid rgba(251,191,36,0.2); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 0.82rem; color: var(--accent-amber); margin-bottom: 20px; line-height: 1.5; }
+        @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } .chart-wrap { height: 240px; } .metrics-row { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <div class="header">
+        <div class="header-top">
+            <span class="header-badge">Survey Results</span>
+            <span class="header-badge" style="background:var(--accent-green-dim);color:var(--accent-green);">120 Respondents</span>
+        </div>
+        <h1>Landing Page Feedback</h1>
+        <p>BackOffice Landing Page satisfaction &amp; feature feedback &mdash; Feb 2026 across 4 countries</p>
+    </div>
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('overall',this)">Overall</button>
+        <button class="tab" onclick="showTab('germany',this)">🇩🇪 Germany</button>
+        <button class="tab" onclick="showTab('poland',this)">🇵🇱 Poland</button>
+        <button class="tab" onclick="showTab('netherlands',this)">🇳🇱 Netherlands</button>
+        <button class="tab" onclick="showTab('canada',this)">🇨🇦 Canada</button>
+        <button class="tab" onclick="showTab('segment',this)">GLS vs Sub</button>
+    </div>
+
+    <!-- Overall Tab -->
+    <div id="overall" class="tab-content active">
+        <div class="findings-card">
+            <h3>📌 Key Findings</h3>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-green-dim)">⭐</div><div class="finding-text"><strong>High Satisfaction:</strong> The landing page received an average rating of <span class="hl hl-green">4.12/5</span>, with <span class="hl hl-green">83.3%</span> of respondents rating it 4 or 5 stars. Poland rates highest (<span class="hl hl-green">4.38</span>), Canada lowest (<span class="hl hl-amber">3.69</span>).</div></div>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-blue-dim)">📊</div><div class="finding-text"><strong>Live Status Dominates:</strong> <span class="hl hl-blue">82.7%</span> of users say Live Status is what they like most, and <span class="hl hl-blue">79.3%</span> say it&rsquo;s the card they use most often. It&rsquo;s the clear anchor feature of the landing page.</div></div>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-green-dim)">✅</div><div class="finding-text"><strong>Majority Happy:</strong> <span class="hl hl-green">65.6%</span> of respondents who answered the &ldquo;dislike&rdquo; question said &ldquo;I like everything.&rdquo; The most-disliked features are &ldquo;Needs Your Attention&rdquo; (<span class="hl hl-amber">15.6%</span>) and Weather Forecast (<span class="hl hl-amber">10.9%</span>).</div></div>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-amber-dim)">⚠️</div><div class="finding-text"><strong>&ldquo;Needs Your Attention&rdquo; Adoption:</strong> Only <span class="hl hl-amber">54.4%</span> of users engage with this feature positively. Adoption is strongest in Netherlands (<span class="hl hl-green">75.0%</span>) and Poland (<span class="hl hl-green">65.0%</span>), but weak in Canada (<span class="hl hl-rose">37.5%</span>) and Germany (<span class="hl hl-rose">48.0%</span>).</div></div>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-rose-dim)">🇨🇦</div><div class="finding-text"><strong>Canada Most Critical:</strong> Canada has the lowest satisfaction (<span class="hl hl-rose">3.69</span>), highest &ldquo;Nothing&rdquo; in likes (<span class="hl hl-rose">27.3%</span>), and the most detailed critical feedback &mdash; requesting features like stop editing and questioning the value of the weather card.</div></div>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-purple-dim)">🔀</div><div class="finding-text"><strong>GLS vs Sub:</strong> Ratings are similar (GLS <span class="hl hl-blue">4.15</span> vs Sub <span class="hl hl-amber">4.09</span>). Subcontractors like Live Status more (<span class="hl hl-amber">89.7%</span> vs <span class="hl hl-blue">78.3%</span>) and value &ldquo;Today&rdquo; data more (<span class="hl hl-amber">37.9%</span> vs <span class="hl hl-blue">10.9%</span>). GLS staff engage more with &ldquo;Needs Your Attention.&rdquo;</div></div>
+        </div>
+
+        <div class="metrics-row">
+            <div class="metric-card"><div class="metric-label">Total Respondents</div><div class="metric-value">120</div><div class="metric-sub">4 countries</div></div>
+            <div class="metric-card"><div class="metric-label">GLS Internal</div><div class="metric-value">62</div><div class="metric-sub">51.7% of total</div></div>
+            <div class="metric-card"><div class="metric-label">Subcontractors</div><div class="metric-value">58</div><div class="metric-sub">48.3% of total</div></div>
+            <div class="metric-card"><div class="metric-label">Avg Rating</div><div class="metric-value">4.12</div><div class="metric-sub">out of 5</div></div>
+            <div class="metric-card"><div class="metric-label">Positive (4-5★)</div><div class="metric-value">83.3%</div><div class="metric-sub">100 of 120</div></div>
+            <div class="metric-card"><div class="metric-label">Cleaned Responses</div><div class="metric-value">108</div><div class="metric-sub">12 junk excluded from Q2-Q5</div></div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card"><h3>Respondents by Country</h3><div class="chart-sub">n = 120</div><div class="chart-wrap"><canvas id="chartCountry"></canvas></div></div>
+            <div class="chart-card"><h3>Rating Distribution (1-5)</h3><div class="chart-sub">n = 120 &middot; avg = 4.12</div><div class="chart-wrap"><canvas id="chartRating"></canvas></div></div>
+            <div class="chart-card"><h3>Average Rating by Country</h3><div class="chart-sub">n = 120</div><div class="chart-wrap"><canvas id="chartRatingCountry"></canvas></div></div>
+            <div class="chart-card"><h3>What Do You Like Most?</h3><div class="chart-sub">n = 75 &middot; Multi-select</div><div class="chart-wrap"><canvas id="chartLikes"></canvas></div></div>
+            <div class="chart-card"><h3>What Do You Dislike / Find Confusing?</h3><div class="chart-sub">n = 64 &middot; Multi-select</div><div class="chart-wrap"><canvas id="chartDislikes"></canvas></div></div>
+            <div class="chart-card"><h3>Most Used Card</h3><div class="chart-sub">n = 58 &middot; Single-select</div><div class="chart-wrap"><canvas id="chartMostUsed"></canvas></div></div>
+            <div class="chart-card"><h3>&ldquo;Needs Your Attention&rdquo; Usage</h3><div class="chart-sub">n = 57</div><div class="chart-wrap"><canvas id="chartAttention"></canvas></div></div>
+            <div class="chart-card"><h3>&ldquo;Needs Your Attention&rdquo; &mdash; Positive Rate by Country</h3><div class="chart-sub">% who said Yes frequently or Yes sometimes</div><div class="chart-wrap"><canvas id="chartAttentionCountry"></canvas></div></div>
+        </div>
+
+        <div class="note-box">⚠️ 12 responses were excluded from Q2&ndash;Q5 analysis due to data quality issues (identical answers for &ldquo;like,&rdquo; &ldquo;dislike,&rdquo; and &ldquo;most used&rdquo; questions, indicating the respondent did not read the questions). Their Q1 ratings are still included. Free-text feedback from excluded respondents is retained where substantive.</div>
+
+        <div class="feedback-section">
+            <div class="feedback-header"><h3>Open-Text Feedback</h3><span class="feedback-count">10 substantive responses across Q6, Q7, Q8</span></div>
+            <div class="table-wrap"><table><thead><tr><th>Country</th><th>Type</th><th>Question</th><th>Original</th><th>Translation</th></tr></thead><tbody id="tbodyFeedback"></tbody></table></div>
+        </div>
+
+        <div class="section-title"><span class="dot" style="background:var(--accent-blue)"></span> Response Completion by Question</div>
+        <div class="completion-row">
+            <div class="completion-item"><div class="completion-label"><span>Q1 Rating</span><span>120/120 (100%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:100%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Q2 Like Most</span><span>75/108 (69.4%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:69.4%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Q3 Dislike</span><span>64/108 (59.3%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:59.3%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Q4 Most Used</span><span>58/108 (53.7%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:53.7%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Q5 Attention Usage</span><span>57/108 (52.8%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:52.8%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Q6 Why Confusing</span><span>3/108 (2.8%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:2.8%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Q7 Suggestions</span><span>5/108 (4.6%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:4.6%"></div></div></div>
+        </div>
+    </div>
+
+    <!-- Country tabs (lazy loaded) -->
+    <div id="germany" class="tab-content"></div>
+    <div id="poland" class="tab-content"></div>
+    <div id="netherlands" class="tab-content"></div>
+    <div id="canada" class="tab-content"></div>
+    <div id="segment" class="tab-content"></div>
+</div>
+
+<script>
+// ============================================================
+// DATA
+// ============================================================
+var DATA = {
+    countries: {
+        Germany:    {total:59, gls:19, sub:40, clean:51, cleanGls:17, cleanSub:34, flag:'🇩🇪', avg:4.08, pos:'84.7%', posN:'50/59'},
+        Poland:     {total:34, gls:27, sub:7,  clean:34, cleanGls:27, cleanSub:7,  flag:'🇵🇱', avg:4.38, pos:'91.2%', posN:'31/34'},
+        Netherlands:{total:11, gls:9,  sub:2,  clean:10, cleanGls:8,  cleanSub:2,  flag:'🇳🇱', avg:4.09, pos:'81.8%', posN:'9/11'},
+        Canada:     {total:16, gls:7,  sub:9,  clean:13, cleanGls:7,  cleanSub:6,  flag:'🇨🇦', avg:3.69, pos:'62.5%', posN:'10/16'}
+    },
+    rating: {
+        overall: [2,2,16,60,40],
+        Germany: [1,2,6,32,18], Poland: [0,0,3,15,16], Netherlands: [0,0,2,6,3], Canada: [1,0,5,7,3],
+        GLS: [1,0,7,35,19], Sub: [1,2,9,25,21]
+    },
+    q2: {
+        labels:['Live Status','Today','Yesterday','Weather Forecast','Needs Your Attention','Nothing'],
+        overall:[62,16,13,10,10,7], n:{overall:75},
+        Germany:[30,8,7,5,2,2], Poland:[20,6,5,5,6,2], Netherlands:[5,0,0,0,1,0], Canada:[7,2,1,0,1,3],
+        GLS:[36,5,6,5,8,5], Sub:[26,11,7,5,2,2],
+        nC:{Germany:34,Poland:25,Netherlands:5,Canada:11,GLS:46,Sub:29}
+    },
+    q3: {
+        labels:['I like everything','Needs Your Attention','Weather Forecast','Yesterday','Today','Live Status'],
+        overall:[42,10,7,5,2,2], n:{overall:64},
+        Germany:[17,4,4,3,0,1], Poland:[17,3,2,1,0,0], Netherlands:[4,0,0,0,0,0], Canada:[4,3,1,1,2,1],
+        GLS:[30,6,6,0,1,1], Sub:[12,4,1,5,1,1],
+        nC:{Germany:28,Poland:23,Netherlands:4,Canada:9,GLS:42,Sub:22}
+    },
+    q4: {
+        labels:['Live Status','Yesterday','I don\'t use any','Today','Needs Your Attention'],
+        overall:[46,4,4,3,1], n:{overall:58},
+        Germany:[21,1,2,1,0], Poland:[18,2,0,1,0], Netherlands:[2,1,0,1,0], Canada:[5,0,2,0,1],
+        GLS:[31,3,3,2,0], Sub:[15,1,1,1,1],
+        nC:{Germany:25,Poland:21,Netherlands:4,Canada:8,GLS:39,Sub:19}
+    },
+    q5: {
+        labels:['Yes, frequently','Yes, sometimes','Rarely','Never'],
+        overall:[7,24,10,16], n:{overall:57},
+        Germany:[2,10,4,9], Poland:[3,10,4,3], Netherlands:[1,2,1,0], Canada:[1,2,1,4],
+        GLS:[5,17,6,11], Sub:[2,7,4,5],
+        nC:{Germany:25,Poland:20,Netherlands:4,Canada:8,GLS:39,Sub:18},
+        posRate:{overall:54.4, Germany:48.0, Poland:65.0, Netherlands:75.0, Canada:37.5, GLS:56.4, Sub:50.0}
+    },
+    feedback: [
+        {c:'Canada',t:'SUB',q:'Q6',orig:'Je veux avoir un apercu avec les numéros de bill pour les jours percédents.',trans:'I want an overview with bill numbers for previous days'},
+        {c:'Canada',t:'GLS',q:'Q6',orig:'Weather forecast is unnecessary for local ops, maybe for remote managers. Today information is basically a live status display for statistics, they should be combined. The map is the least important part of live status, the list view is much more powerful to start with. The map is for investigating drivers once selected.',trans:'—'},
+        {c:'Canada',t:'SUB',q:'Q6',orig:'show me the stops on the map like in beans route',trans:'—'},
+        {c:'Canada',t:'GLS',q:'Q7',orig:'Get rid of the weather feature. Prioritize live status and *relevant* alerts. Present the live status as a table of drivers sorted by (some criteria) and put the today stats as a header on it. The map just gets in my way until I want to look at stop sequences.',trans:'—'},
+        {c:'Canada',t:'SUB',q:'Q7',orig:'COPY BEANS ROUTE they figured it out way to much better to not copy them!',trans:'—'},
+        {c:'Germany',t:'SUB',q:'Q7',orig:'Stopp zahlen Sie nicht alle trauff',trans:'Stop numbers don\'t all show up correctly'},
+        {c:'Poland',t:'GLS',q:'Q7',orig:'Możliwość wprowadzania zmian u kuriera z poziomu komputera',trans:'Ability to make changes to the driver from the computer'},
+        {c:'Canada',t:'GLS',q:'Q8',orig:'Most alerts are caused by routine matters not deserving of intervention.',trans:'—'},
+        {c:'Poland',t:'GLS',q:'Q8',orig:'Nie miałam takiej sytuacji',trans:'I haven\'t had such a situation'},
+        {c:'Poland',t:'GLS',q:'Q8',orig:'Przechodzę odrazu do zakładki status na żywo',trans:'I go directly to the live status tab'}
+    ]
+};
+
+// ============================================================
+// CHART SETUP
+// ============================================================
+Chart.defaults.color = '#9aa0b0';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.font.size = 12;
+
+var C = { blue:'#4f8ff7', green:'#34d399', amber:'#fbbf24', rose:'#f472b6', purple:'#a78bfa', cyan:'#22d3ee', slate:'#64748b', indigo:'#6366f1', orange:'#f97316' };
+var gridOpts = { color:'rgba(255,255,255,0.06)' };
+
+function makeChart(id, cfg) {
+    try {
+        var el = document.getElementById(id);
+        if (!el) { console.error('Canvas not found:', id); return null; }
+        return new Chart(el, cfg);
+    } catch(e) { console.error('Chart error ' + id, e); return null; }
+}
+function pct(arr, n) { return arr.map(function(v){ return +(v/n*100).toFixed(1); }); }
+
+// ============================================================
+// OVERALL CHARTS
+// ============================================================
+
+// 1. Respondents by Country (grouped)
+makeChart('chartCountry', {
+    type:'bar',
+    data:{ labels:['Germany','Poland','Netherlands','Canada'], datasets:[
+        {label:'GLS',data:[19,27,9,7],backgroundColor:C.blue,borderRadius:4},
+        {label:'Subcontractor',data:[40,7,2,9],backgroundColor:C.amber,borderRadius:4}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top',labels:{boxWidth:12,padding:14}}}, scales:{x:{grid:gridOpts},y:{beginAtZero:true,grid:gridOpts}} }
+});
+
+// 2. Rating Distribution
+makeChart('chartRating', {
+    type:'bar',
+    data:{ labels:['1★','2★','3★','4★','5★'], datasets:[{
+        label:'Respondents',data:[2,2,16,60,40],
+        backgroundColor:[C.rose,C.orange,C.amber,C.blue,C.green],borderRadius:4
+    }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{grid:gridOpts},y:{beginAtZero:true,grid:gridOpts}} }
+});
+
+// 3. Avg Rating by Country
+makeChart('chartRatingCountry', {
+    type:'bar',
+    data:{ labels:['Germany','Poland','Netherlands','Canada'], datasets:[{
+        label:'Average',data:[4.08,4.38,4.09,3.69],
+        backgroundColor:[C.blue,C.purple,C.amber,C.cyan],borderRadius:6
+    }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{grid:gridOpts},y:{beginAtZero:false,min:3,max:5,grid:gridOpts}} }
+});
+
+// 4. Q2 Likes
+makeChart('chartLikes', {
+    type:'bar',
+    data:{ labels:DATA.q2.labels, datasets:[{label:'%',data:pct(DATA.q2.overall,75),backgroundColor:[C.blue,C.green,C.amber,C.cyan,C.purple,C.slate],borderRadius:4}] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ctx.raw+'% ('+DATA.q2.overall[ctx.dataIndex]+' of 75)';}}}}, scales:{x:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}} }
+});
+
+// 5. Q3 Dislikes
+makeChart('chartDislikes', {
+    type:'bar',
+    data:{ labels:DATA.q3.labels, datasets:[{label:'%',data:pct(DATA.q3.overall,64),backgroundColor:[C.green,C.purple,C.cyan,C.amber,C.orange,C.blue],borderRadius:4}] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ctx.raw+'% ('+DATA.q3.overall[ctx.dataIndex]+' of 64)';}}}}, scales:{x:{beginAtZero:true,max:80,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}} }
+});
+
+// 6. Most Used Card (doughnut)
+makeChart('chartMostUsed', {
+    type:'doughnut',
+    data:{ labels:DATA.q4.labels, datasets:[{data:DATA.q4.overall,backgroundColor:[C.blue,C.amber,C.slate,C.green,C.purple],borderWidth:0,hoverOffset:8}] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:10}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/58*100).toFixed(1)+'%)';}}}}}
+});
+
+// 7. Attention Usage (doughnut)
+makeChart('chartAttention', {
+    type:'doughnut',
+    data:{ labels:DATA.q5.labels, datasets:[{data:DATA.q5.overall,backgroundColor:[C.green,C.blue,C.amber,C.rose],borderWidth:0,hoverOffset:8}] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:10}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/57*100).toFixed(1)+'%)';}}}}}
+});
+
+// 8. Attention Positive Rate by Country
+makeChart('chartAttentionCountry', {
+    type:'bar',
+    data:{ labels:['Germany','Poland','Netherlands','Canada'], datasets:[{label:'% Positive',data:[48.0,65.0,75.0,37.5],backgroundColor:[C.blue,C.purple,C.amber,C.cyan],borderRadius:6}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{grid:gridOpts},y:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}}} }
+});
+
+// ============================================================
+// FEEDBACK TABLE
+// ============================================================
+(function(){
+    var tbody = document.getElementById('tbodyFeedback');
+    DATA.feedback.forEach(function(f){
+        var tr = document.createElement('tr');
+        var cInfo = DATA.countries[f.c];
+        var isEn = (f.trans === '—');
+        tr.innerHTML = '<td><span class="tag tag-country">'+(cInfo?cInfo.flag:'')+' '+f.c+'</span></td>'
+            +'<td><span class="tag '+(f.t==='GLS'?'tag-gls':'tag-sub')+'">'+f.t+'</span></td>'
+            +'<td><span class="tag tag-q">'+f.q+'</span></td>'
+            +(isEn
+                ? '<td class="trans-text">'+f.orig+'</td><td class="trans-text">—</td>'
+                : '<td class="orig-text">'+f.orig+'</td><td class="trans-text">'+f.trans+'</td>');
+        tbody.appendChild(tr);
+    });
+})();
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function showTab(id, btn) {
+    document.querySelectorAll('.tab-content').forEach(function(el){ el.classList.remove('active'); });
+    document.querySelectorAll('.tab').forEach(function(el){ el.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+    if (['germany','poland','netherlands','canada'].indexOf(id) !== -1) initCountryTab(id);
+    if (id === 'segment') initSegmentTab();
+}
+
+// ============================================================
+// COUNTRY TAB BUILDER
+// ============================================================
+var countryInited = {};
+function initCountryTab(tabId) {
+    var nameMap = {germany:'Germany',poland:'Poland',netherlands:'Netherlands',canada:'Canada'};
+    var name = nameMap[tabId];
+    if (countryInited[tabId]) return;
+    countryInited[tabId] = true;
+    var c = DATA.countries[name];
+    var q2n = DATA.q2.nC[name], q2d = DATA.q2[name];
+    var q3n = DATA.q3.nC[name], q3d = DATA.q3[name];
+    var q4n = DATA.q4.nC[name], q4d = DATA.q4[name];
+    var q5n = DATA.q5.nC[name], q5d = DATA.q5[name];
+    var posRate = DATA.q5.posRate[name];
+    var ratingDist = DATA.rating[name];
+
+    var container = document.getElementById(tabId);
+    container.innerHTML =
+        '<div class="metrics-row">'
+        +'<div class="metric-card"><div class="metric-label">Total Respondents</div><div class="metric-value">'+c.total+'</div><div class="metric-sub">GLS: '+c.gls+' · Sub: '+c.sub+'</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Avg Rating</div><div class="metric-value">'+c.avg.toFixed(2)+'</div><div class="metric-sub">out of 5</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Positive (4-5★)</div><div class="metric-value">'+c.pos+'</div><div class="metric-sub">'+c.posN+'</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Clean Responses</div><div class="metric-value">'+c.clean+'</div><div class="metric-sub">GLS: '+c.cleanGls+' · Sub: '+c.cleanSub+'</div></div>'
+        +'</div>'
+        +'<div class="charts-grid">'
+        +'<div class="chart-card"><h3>Rating Distribution</h3><div class="chart-sub">n = '+c.total+'</div><div class="chart-wrap"><canvas id="c_'+tabId+'_rating"></canvas></div></div>'
+        +'<div class="chart-card"><h3>What Do You Like Most?</h3><div class="chart-sub">n = '+q2n+' · Multi-select</div><div class="chart-wrap"><canvas id="c_'+tabId+'_likes"></canvas></div></div>'
+        +'<div class="chart-card"><h3>What Do You Dislike?</h3><div class="chart-sub">n = '+q3n+' · Multi-select</div><div class="chart-wrap"><canvas id="c_'+tabId+'_dislikes"></canvas></div></div>'
+        +'<div class="chart-card"><h3>Most Used Card</h3><div class="chart-sub">n = '+q4n+'</div><div class="chart-wrap"><canvas id="c_'+tabId+'_used"></canvas></div></div>'
+        +'<div class="chart-card"><h3>&ldquo;Needs Your Attention&rdquo; Usage</h3><div class="chart-sub">n = '+q5n+' · Positive: '+posRate+'%</div><div class="chart-wrap"><canvas id="c_'+tabId+'_attn"></canvas></div></div>'
+        +'</div>'
+        +'<div class="feedback-section"><div class="feedback-header"><h3>'+c.flag+' '+name+' — Open Feedback</h3></div>'
+        +'<div class="table-wrap"><table><thead><tr><th>Type</th><th>Question</th><th>Original</th><th>Translation</th></tr></thead><tbody id="fb_'+tabId+'"></tbody></table></div></div>';
+
+    setTimeout(function(){
+        // Rating
+        makeChart('c_'+tabId+'_rating', {type:'bar',data:{labels:['1★','2★','3★','4★','5★'],datasets:[{data:ratingDist,backgroundColor:[C.rose,C.orange,C.amber,C.blue,C.green],borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:gridOpts},y:{beginAtZero:true,grid:gridOpts}}}});
+        // Likes
+        if(q2n>0) makeChart('c_'+tabId+'_likes', {type:'bar',data:{labels:DATA.q2.labels,datasets:[{label:'%',data:pct(q2d,q2n),backgroundColor:[C.blue,C.green,C.amber,C.cyan,C.purple,C.slate],borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ctx.raw+'% ('+q2d[ctx.dataIndex]+' of '+q2n+')';}}}},scales:{x:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}}}});
+        // Dislikes
+        if(q3n>0) makeChart('c_'+tabId+'_dislikes', {type:'bar',data:{labels:DATA.q3.labels,datasets:[{label:'%',data:pct(q3d,q3n),backgroundColor:[C.green,C.purple,C.cyan,C.amber,C.orange,C.blue],borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ctx.raw+'% ('+q3d[ctx.dataIndex]+' of '+q3n+')';}}}},scales:{x:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}}}});
+        // Most Used
+        if(q4n>0) makeChart('c_'+tabId+'_used', {type:'doughnut',data:{labels:DATA.q4.labels,datasets:[{data:q4d,backgroundColor:[C.blue,C.amber,C.slate,C.green,C.purple],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:8}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/q4n*100).toFixed(1)+'%)';}}}}}});
+        // Attention
+        if(q5n>0) makeChart('c_'+tabId+'_attn', {type:'doughnut',data:{labels:DATA.q5.labels,datasets:[{data:q5d,backgroundColor:[C.green,C.blue,C.amber,C.rose],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:8}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/q5n*100).toFixed(1)+'%)';}}}}}});
+
+        // Feedback
+        var fbBody = document.getElementById('fb_'+tabId);
+        var cfb = DATA.feedback.filter(function(f){return f.c===name;});
+        if(!cfb.length) fbBody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-muted)">No substantive open-text feedback for this country.</td></tr>';
+        else cfb.forEach(function(f){
+            var tr=document.createElement('tr');
+            var isEn=(f.trans==='—');
+            tr.innerHTML='<td><span class="tag '+(f.t==='GLS'?'tag-gls':'tag-sub')+'">'+f.t+'</span></td>'
+                +'<td><span class="tag tag-q">'+f.q+'</span></td>'
+                +(isEn?'<td class="trans-text">'+f.orig+'</td><td class="trans-text">—</td>':'<td class="orig-text">'+f.orig+'</td><td class="trans-text">'+f.trans+'</td>');
+            fbBody.appendChild(tr);
+        });
+    }, 60);
+}
+
+// ============================================================
+// SEGMENT TAB
+// ============================================================
+var segInited = false;
+function initSegmentTab() {
+    if(segInited) return; segInited=true;
+    var el = document.getElementById('segment');
+    el.innerHTML =
+        '<div class="findings-card"><h3>🔀 GLS Internal vs Subcontractor — Key Differences</h3>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-blue-dim)">👥</div><div class="finding-text"><strong>Composition:</strong> <span class="hl hl-blue">62</span> GLS internal staff vs <span class="hl hl-amber">58</span> subcontractors. After cleaning, <span class="hl hl-blue">59</span> GLS vs <span class="hl hl-amber">49</span> Sub for Q2–Q5.</div></div>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-green-dim)">⭐</div><div class="finding-text"><strong>Similar ratings:</strong> GLS <span class="hl hl-blue">4.15</span> vs Sub <span class="hl hl-amber">4.09</span>. GLS positive rate is slightly higher (<span class="hl hl-blue">87.1%</span> vs <span class="hl hl-amber">79.3%</span>).</div></div>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-amber-dim)">📊</div><div class="finding-text"><strong>Feature preferences:</strong> Subs like Live Status more (<span class="hl hl-amber">89.7%</span> vs <span class="hl hl-blue">78.3%</span>) and value “Today” data significantly more (<span class="hl hl-amber">37.9%</span> vs <span class="hl hl-blue">10.9%</span>). GLS staff engage more with “Needs Your Attention” (<span class="hl hl-blue">17.4%</span> vs <span class="hl hl-amber">6.9%</span>).</div></div>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-purple-dim)">👍</div><div class="finding-text"><strong>Satisfaction gap:</strong> GLS staff are happier — <span class="hl hl-blue">71.4%</span> say “I like everything” vs <span class="hl hl-amber">54.5%</span> for subs. Subs are more critical of Live Status (<span class="hl hl-amber">4.5%</span> dislike) and Yesterday (<span class="hl hl-amber">22.7%</span> dislike).</div></div>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-rose-dim)">🔔</div><div class="finding-text"><strong>Attention feature:</strong> Similar positive rates — GLS <span class="hl hl-blue">56.4%</span> vs Sub <span class="hl hl-amber">50.0%</span>. Neither segment has strong adoption.</div></div>'
+        +'</div>'
+        +'<div class="metrics-row">'
+        +'<div class="metric-card"><div class="metric-label">GLS Internal</div><div class="metric-value">62</div><div class="metric-sub">51.7% of total</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Subcontractors</div><div class="metric-value">58</div><div class="metric-sub">48.3% of total</div></div>'
+        +'<div class="metric-card"><div class="metric-label">GLS Avg Rating</div><div class="metric-value">4.15</div><div class="metric-sub">87.1% positive</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Sub Avg Rating</div><div class="metric-value">4.09</div><div class="metric-sub">79.3% positive</div></div>'
+        +'<div class="metric-card"><div class="metric-label">GLS Attn Positive</div><div class="metric-value">56.4%</div><div class="metric-sub">22 of 39</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Sub Attn Positive</div><div class="metric-value">50.0%</div><div class="metric-sub">9 of 18</div></div>'
+        +'</div>'
+        +'<div class="charts-grid">'
+        +'<div class="chart-card"><h3>Rating Distribution — GLS vs Sub</h3><div class="chart-sub">GLS n=62 · Sub n=58</div><div class="chart-wrap"><canvas id="seg_rating"></canvas></div></div>'
+        +'<div class="chart-card"><h3>What Do You Like Most? — GLS vs Sub</h3><div class="chart-sub">GLS n=46 · Sub n=29</div><div class="chart-wrap"><canvas id="seg_likes"></canvas></div></div>'
+        +'<div class="chart-card"><h3>What Do You Dislike? — GLS vs Sub</h3><div class="chart-sub">GLS n=42 · Sub n=22</div><div class="chart-wrap"><canvas id="seg_dislikes"></canvas></div></div>'
+        +'<div class="chart-card"><h3>&ldquo;Needs Your Attention&rdquo; — GLS vs Sub</h3><div class="chart-sub">GLS n=39 · Sub n=18</div><div class="chart-wrap"><canvas id="seg_attn"></canvas></div></div>'
+        +'</div>';
+
+    setTimeout(function(){
+        // Rating
+        makeChart('seg_rating',{type:'bar',data:{labels:['1★','2★','3★','4★','5★'],datasets:[
+            {label:'GLS',data:pct(DATA.rating.GLS,62),backgroundColor:C.blue,borderRadius:4},
+            {label:'Sub',data:pct(DATA.rating.Sub,58),backgroundColor:C.amber,borderRadius:4}
+        ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw+'%';}}}},scales:{x:{grid:gridOpts},y:{beginAtZero:true,max:60,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}}}}});
+        // Likes
+        makeChart('seg_likes',{type:'bar',data:{labels:DATA.q2.labels,datasets:[
+            {label:'GLS',data:pct(DATA.q2.GLS,46),backgroundColor:C.blue,borderRadius:4},
+            {label:'Sub',data:pct(DATA.q2.Sub,29),backgroundColor:C.amber,borderRadius:4}
+        ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw+'%';}}}},scales:{x:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}}}});
+        // Dislikes
+        makeChart('seg_dislikes',{type:'bar',data:{labels:DATA.q3.labels,datasets:[
+            {label:'GLS',data:pct(DATA.q3.GLS,42),backgroundColor:C.blue,borderRadius:4},
+            {label:'Sub',data:pct(DATA.q3.Sub,22),backgroundColor:C.amber,borderRadius:4}
+        ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw+'%';}}}},scales:{x:{beginAtZero:true,max:80,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}}}});
+        // Attention
+        makeChart('seg_attn',{type:'bar',data:{labels:DATA.q5.labels,datasets:[
+            {label:'GLS',data:pct(DATA.q5.GLS,39),backgroundColor:C.blue,borderRadius:4},
+            {label:'Sub',data:pct(DATA.q5.Sub,18),backgroundColor:C.amber,borderRadius:4}
+        ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw+'%';}}}},scales:{x:{grid:gridOpts},y:{beginAtZero:true,max:50,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}}}}});
+    },60);
+}
+</script>
+</body>
+</html>
