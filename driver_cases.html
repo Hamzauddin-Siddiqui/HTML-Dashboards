@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Cases in Intercom</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #f9fafb;
+            color: #374151;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            background-color: white;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        h2 {
+            font-size: 1.25rem;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 1rem;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .metric-card {
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            border-left: 4px solid;
+        }
+
+        .metric-card.blue {
+            background-color: #eff6ff;
+            border-left-color: #3b82f6;
+        }
+
+        .metric-card.green {
+            background-color: #f0fdf4;
+            border-left-color: #10b981;
+        }
+
+        .metric-card.orange {
+            background-color: #fff7ed;
+            border-left-color: #f97316;
+        }
+
+        .metric-card.purple {
+            background-color: #faf5ff;
+            border-left-color: #8b5cf6;
+        }
+
+        .metric-title {
+            font-size: 1.125rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-bottom: 0.25rem;
+        }
+
+        .metric-subtitle {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .blue .metric-title { color: #1e40af; }
+        .blue .metric-value { color: #2563eb; }
+        .green .metric-title { color: #065f46; }
+        .green .metric-value { color: #059669; }
+        .orange .metric-title { color: #9a3412; }
+        .orange .metric-value { color: #ea580c; }
+        .purple .metric-title { color: #5b21b6; }
+        .purple .metric-value { color: #7c3aed; }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .chart-container {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .full-width-chart {
+            grid-column: 1 / -1;
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .chart-canvas {
+            max-height: 400px;
+        }
+
+        .tenant-breakdown {
+            margin-top: 1rem;
+        }
+
+        .tenant-breakdown h3 {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .tenant-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.25rem 0;
+        }
+
+        .tenant-label {
+            display: flex;
+            align-items: center;
+        }
+
+        .color-box {
+            width: 1rem;
+            height: 1rem;
+            border-radius: 0.25rem;
+            margin-right: 0.5rem;
+        }
+
+        .tenant-name {
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Driver Cases in Intercom</h1>
+        
+        <!-- Key Metrics -->
+        <div class="metrics-grid">
+            <div class="metric-card blue">
+                <div class="metric-title">Total Driver Cases</div>
+                <div class="metric-value">71</div>
+                <div class="metric-subtitle">All valid driver cases</div>
+            </div>
+            
+            <div class="metric-card green">
+                <div class="metric-title">Average Per Week</div>
+                <div class="metric-value">6.5</div>
+                <div class="metric-subtitle">Cases per week</div>
+            </div>
+            
+            <div class="metric-card orange">
+                <div class="metric-title">Peak Week</div>
+                <div class="metric-value">15</div>
+                <div class="metric-subtitle">Week 23 & 27 (tied)</div>
+            </div>
+            
+            <div class="metric-card purple">
+                <div class="metric-title">Growth Trend</div>
+                <div class="metric-value">+400%</div>
+                <div class="metric-subtitle">From Week 17 to 28</div>
+            </div>
+        </div>
+
+        <!-- Tenant Distribution Charts -->
+        <div class="charts-grid">
+            <div class="chart-container">
+                <h2>Tenant Distribution</h2>
+                <canvas id="pieChart" class="chart-canvas"></canvas>
+                <div class="tenant-breakdown">
+                    <h3>Breakdown:</h3>
+                    <div class="tenant-item">
+                        <div class="tenant-label">
+                            <div class="color-box" style="background-color: #8884d8;"></div>
+                            <span class="tenant-name">DE:</span>
+                        </div>
+                        <span>40 cases (56.3%)</span>
+                    </div>
+                    <div class="tenant-item">
+                        <div class="tenant-label">
+                            <div class="color-box" style="background-color: #82ca9d;"></div>
+                            <span class="tenant-name">NL:</span>
+                        </div>
+                        <span>12 cases (16.9%)</span>
+                    </div>
+                    <div class="tenant-item">
+                        <div class="tenant-label">
+                            <div class="color-box" style="background-color: #ffc658;"></div>
+                            <span class="tenant-name">PL:</span>
+                        </div>
+                        <span>10 cases (14.1%)</span>
+                    </div>
+                    <div class="tenant-item">
+                        <div class="tenant-label">
+                            <div class="color-box" style="background-color: #ff7300;"></div>
+                            <span class="tenant-name">AT:</span>
+                        </div>
+                        <span>7 cases (9.9%)</span>
+                    </div>
+                    <div class="tenant-item">
+                        <div class="tenant-label">
+                            <div class="color-box" style="background-color: #00ff00;"></div>
+                            <span class="tenant-name">SI:</span>
+                        </div>
+                        <span>1 case (1.4%)</span>
+                    </div>
+                    <div class="tenant-item">
+                        <div class="tenant-label">
+                            <div class="color-box" style="background-color: #ff0000;"></div>
+                            <span class="tenant-name">IT:</span>
+                        </div>
+                        <span>1 case (1.4%)</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h2>Cases by Tenant</h2>
+                <canvas id="barChart" class="chart-canvas"></canvas>
+            </div>
+        </div>
+
+        <!-- Weekly Trend Analysis -->
+        <div class="full-width-chart">
+            <h2>Weekly Trend Analysis</h2>
+            <canvas id="lineChart" class="chart-canvas"></canvas>
+        </div>
+
+        <!-- Weekly Breakdown by Tenant -->
+        <div class="full-width-chart">
+            <h2>Weekly Cases by Tenant</h2>
+            <canvas id="stackedBarChart" class="chart-canvas"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // Data (updated without date filter)
+        const tenantData = [
+            { tenant: 'DE', cases: 40, percentage: 56.3 },
+            { tenant: 'NL', cases: 12, percentage: 16.9 },
+            { tenant: 'PL', cases: 10, percentage: 14.1 },
+            { tenant: 'AT', cases: 7, percentage: 9.9 },
+            { tenant: 'SI', cases: 1, percentage: 1.4 },
+            { tenant: 'IT', cases: 1, percentage: 1.4 }
+        ];
+
+        const weeklyData = [
+            { week: 'W17', period: 'Apr 21-27', cases: 1, DE: 0, NL: 0, PL: 1, AT: 0, SI: 0, IT: 0 },
+            { week: 'W18', period: 'Apr 28-May 4', cases: 1, DE: 0, NL: 1, PL: 0, AT: 0, SI: 0, IT: 0 },
+            { week: 'W20', period: 'May 12-18', cases: 2, DE: 1, NL: 1, PL: 0, AT: 0, SI: 0, IT: 0 },
+            { week: 'W21', period: 'May 19-25', cases: 3, DE: 2, NL: 0, PL: 0, AT: 0, SI: 1, IT: 0 },
+            { week: 'W22', period: 'May 26-Jun 1', cases: 3, DE: 2, NL: 1, PL: 0, AT: 0, SI: 0, IT: 0 },
+            { week: 'W23', period: 'Jun 2-8', cases: 15, DE: 6, NL: 6, PL: 0, AT: 3, SI: 0, IT: 0 },
+            { week: 'W24', period: 'Jun 9-15', cases: 10, DE: 8, NL: 0, PL: 1, AT: 1, SI: 0, IT: 0 },
+            { week: 'W25', period: 'Jun 16-22', cases: 6, DE: 4, NL: 0, PL: 1, AT: 1, SI: 0, IT: 0 },
+            { week: 'W26', period: 'Jun 23-29', cases: 10, DE: 6, NL: 1, PL: 2, AT: 0, SI: 0, IT: 1 },
+            { week: 'W27', period: 'Jun 30-Jul 6', cases: 15, DE: 9, NL: 1, PL: 4, AT: 1, SI: 0, IT: 0 },
+            { week: 'W28', period: 'Jul 7-13', cases: 5, DE: 2, NL: 0, PL: 1, AT: 1, SI: 0, IT: 1 }
+        ];
+
+        const colors = ['#8884d8', '#82ca9d', '#ffc658', '#ff7300', '#00ff00', '#ff0000'];
+
+        // Pie Chart
+        const pieCtx = document.getElementById('pieChart').getContext('2d');
+        new Chart(pieCtx, {
+            type: 'pie',
+            data: {
+                labels: tenantData.map(d => d.tenant),
+                datasets: [{
+                    data: tenantData.map(d => d.cases),
+                    backgroundColor: colors
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const tenant = tenantData[context.dataIndex];
+                                return `${tenant.tenant}: ${tenant.cases} cases (${tenant.percentage}%)`;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // Bar Chart
+        const barCtx = document.getElementById('barChart').getContext('2d');
+        new Chart(barCtx, {
+            type: 'bar',
+            data: {
+                labels: tenantData.map(d => d.tenant),
+                datasets: [{
+                    data: tenantData.map(d => d.cases),
+                    backgroundColor: '#8884d8'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 25
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            },
+            plugins: [{
+                afterDatasetsDraw: function(chart) {
+                    const ctx = chart.ctx;
+                    
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#374151';
+                    ctx.font = 'bold 12px Arial';
+                    
+                    chart.data.datasets.forEach((dataset, i) => {
+                        const meta = chart.getDatasetMeta(i);
+                        meta.data.forEach((bar, index) => {
+                            const data = dataset.data[index];
+                            ctx.fillText(data, bar.x, bar.y - 5);
+                        });
+                    });
+                }
+            }]
+        });
+
+        // Line Chart
+        const lineCtx = document.getElementById('lineChart').getContext('2d');
+        new Chart(lineCtx, {
+            type: 'line',
+            data: {
+                labels: weeklyData.map(d => d.week),
+                datasets: [{
+                    label: 'Cases',
+                    data: weeklyData.map(d => d.cases),
+                    borderColor: '#2563eb',
+                    backgroundColor: '#2563eb',
+                    borderWidth: 3,
+                    pointRadius: 6,
+                    pointHoverRadius: 8
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                const weekData = weeklyData[context[0].dataIndex];
+                                return `${weekData.week} (${weekData.period})`;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            },
+            plugins: [{
+                afterDatasetsDraw: function(chart) {
+                    const ctx = chart.ctx;
+                    
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#374151';
+                    ctx.font = 'bold 12px Arial';
+                    
+                    chart.data.datasets.forEach((dataset, i) => {
+                        const meta = chart.getDatasetMeta(i);
+                        meta.data.forEach((point, index) => {
+                            const data = dataset.data[index];
+                            ctx.fillText(data, point.x, point.y - 10);
+                        });
+                    });
+                }
+            }]
+        });
+
+        // Stacked Bar Chart
+        const stackedBarCtx = document.getElementById('stackedBarChart').getContext('2d');
+        new Chart(stackedBarCtx, {
+            type: 'bar',
+            data: {
+                labels: weeklyData.map(d => d.week),
+                datasets: [
+                    {
+                        label: 'DE',
+                        data: weeklyData.map(d => d.DE),
+                        backgroundColor: '#8884d8'
+                    },
+                    {
+                        label: 'NL',
+                        data: weeklyData.map(d => d.NL),
+                        backgroundColor: '#82ca9d'
+                    },
+                    {
+                        label: 'PL',
+                        data: weeklyData.map(d => d.PL),
+                        backgroundColor: '#ffc658'
+                    },
+                    {
+                        label: 'AT',
+                        data: weeklyData.map(d => d.AT),
+                        backgroundColor: '#ff7300'
+                    },
+                    {
+                        label: 'SI',
+                        data: weeklyData.map(d => d.SI),
+                        backgroundColor: '#00ff00'
+                    },
+                    {
+                        label: 'IT',
+                        data: weeklyData.map(d => d.IT),
+                        backgroundColor: '#ff0000'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 25
+                    }
+                },
+                scales: {
+                    x: {
+                        stacked: true
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            title: function(context) {
+                                const weekData = weeklyData[context[0].dataIndex];
+                                return `${weekData.week} (${weekData.period})`;
+                            }
+                        }
+                    }
+                }
+            },
+            plugins: [{
+                afterDatasetsDraw: function(chart) {
+                    const ctx = chart.ctx;
+                    
+                    ctx.textAlign = 'center';
+                    ctx.font = 'bold 11px Arial';
+                    
+                    // Add total numbers on top of each bar
+                    weeklyData.forEach((weekData, weekIndex) => {
+                        if (weekData.cases > 0) {
+                            // Find the topmost point of the stacked bar
+                            let topY = chart.chartArea.bottom;
+                            
+                            chart.data.datasets.forEach((dataset, datasetIndex) => {
+                                const meta = chart.getDatasetMeta(datasetIndex);
+                                const bar = meta.data[weekIndex];
+                                if (bar && dataset.data[weekIndex] > 0) {
+                                    topY = Math.min(topY, bar.y);
+                                }
+                            });
+                            
+                            // Get x position from any dataset
+                            const meta = chart.getDatasetMeta(0);
+                            const xPosition = meta.data[weekIndex].x;
+                            
+                            ctx.fillStyle = '#374151';
+                            ctx.fillText(weekData.cases, xPosition, topY - 8);
+                        }
+                    });
+                    
+                    // Add individual segment numbers
+                    chart.data.datasets.forEach((dataset, datasetIndex) => {
+                        const meta = chart.getDatasetMeta(datasetIndex);
+                        
+                        meta.data.forEach((bar, index) => {
+                            const value = dataset.data[index];
+                            if (value > 0) {
+                                const barHeight = Math.abs(bar.y - bar.base);
+                                if (barHeight > 18) { // Only show numbers if segment is large enough
+                                    ctx.fillStyle = '#ffffff';
+                                    ctx.strokeStyle = '#000000';
+                                    ctx.lineWidth = 2;
+                                    ctx.strokeText(value, bar.x, bar.y + (barHeight / 2));
+                                    ctx.fillText(value, bar.x, bar.y + (barHeight / 2));
+                                }
+                            }
+                        });
+                    });
+                }
+            }]
+        });
+    </script>
+</body>
+</html>
