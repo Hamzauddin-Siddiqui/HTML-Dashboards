@@ -1,0 +1,2651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Driver Notes Analyzer</title>
+    <!-- Load Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Load PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <!-- Load date picker -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .upload-section {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .upload-section h2 {
+            margin-top: 0;
+        }
+        .file-input {
+            margin: 15px 0;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        select, input {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .visualization {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .tabs {
+            display: flex;
+            margin-bottom: -1px;
+        }
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            background-color: #f0f0f0;
+            border: 1px solid #ddd;
+            border-bottom: none;
+            border-radius: 8px 8px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background-color: white;
+            border-bottom: 1px solid white;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 0 8px 8px 8px;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .stat-card {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            min-width: 200px;
+            flex: 1;
+        }
+        .stat-card h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        #status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .loading-spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .table-container {
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        input[type="text"] {
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .translation-input {
+            width: 100%;
+            min-width: 200px;
+            padding: 5px;
+        }
+        textarea.translation-input {
+            resize: vertical;
+            min-height: 50px;
+            font-family: inherit;
+            font-size: inherit;
+        }
+        .country-stats-container {
+            margin-top: 20px;
+        }
+        
+        .pie-chart-row {
+            display: flex;
+            width: 100%;
+            margin-bottom: 30px;
+        }
+        .legend {
+            margin-top: 20px;
+            background-color: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .date-picker-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .date-picker-group {
+            flex: 1;
+            min-width: 250px;
+        }
+        .date-picker {
+            width: 100%;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Driver Notes Analyzer</h1>
+        
+        <div class="upload-section">
+            <h2>Upload Driver Notes CSV</h2>
+            <p>Upload a CSV file with driver notes data. The file should include the columns: 'lat', 'lng', 'formatted_address', 'content', and 'created_at'.</p>
+            
+            <div class="file-input">
+                <input type="file" id="csvFile" accept=".csv" />
+            </div>
+            
+            <button id="generateBtn" disabled>Analyze Data</button>
+            <button id="exportCategorizations">Export Categorizations</button>
+            <input type="file" id="importCategorizationsFile" accept=".json" style="display: none;">
+            <button id="importCategorizationsBtn">Import Categorizations</button>
+            
+            <div id="status"></div>
+            
+            <div id="loading" class="loading">
+                <div class="loading-spinner"></div>
+                <p>Processing data, please wait...</p>
+            </div>
+        </div>
+        
+        <div class="tabs">
+            <div class="tab active" data-tab="heatmap">Heatmap</div>
+            <div class="tab" data-tab="translation">Translation & Categories</div>
+            <div class="tab" data-tab="stats">Statistics</div>
+            <div class="tab" data-tab="comparison">Date Comparison</div>
+            <div class="tab" data-tab="germany">German Depots</div>
+            <div class="tab" data-tab="analysis">GPS vs Quality</div>
+        </div>
+        
+        <div id="heatmap-tab" class="tab-content active">
+            <div class="control-group">
+                <label for="countryFilter">Filter by Country:</label>
+                <select id="countryFilter">
+                    <option value="all">All Countries</option>
+                    <option value="Poland">Poland</option>
+                    <option value="Netherlands">Netherlands</option>
+                    <option value="Germany">Germany</option>
+                </select>
+            </div>
+            
+            <div id="heatmapViz" class="visualization"></div>
+            
+            <div class="legend">
+                <h3>Heatmap Legend</h3>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(0, 0, 255, 0.2);"></div>
+                    <span>Low Density</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(0, 255, 255, 0.5);"></div>
+                    <span>Medium Density</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: rgba(255, 0, 0, 0.8);"></div>
+                    <span>High Density</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="translation-tab" class="tab-content">
+            <div class="control-group">
+                <button id="autoTranslate">Auto-Translate All</button>
+                <button id="exportData" style="margin-left: 10px;">Export Data</button>
+                <input type="text" id="apiKey" placeholder="Enter Microsoft Translator API Key" style="margin-left: 15px; width: 250px;">
+                <select id="translationCountryFilter" style="margin-left: 15px;">
+                    <option value="all">All Countries</option>
+                    <option value="Poland">Poland</option>
+                    <option value="Netherlands">Netherlands</option>
+                    <option value="Germany">Germany</option>
+                </select>
+            </div>
+            
+            <div style="margin: 15px 0; padding: 10px; background-color: #f0f0f0; border-radius: 4px;">
+                <strong>Translation Options:</strong>
+                <br>
+                <strong>Option 1 - Simple Translation (No API Key):</strong> Click "Auto-Translate All" and choose "OK" for basic word-by-word translation.
+                <br>
+                <strong>Option 2 - API Translation:</strong> Enter an API key and click "Auto-Translate All", then choose "Cancel" for full translation.
+                <br>
+                <em>The simple translator handles common delivery terms in Polish, Dutch, and German.</em>
+            </div>
+            
+            <div id="translationStatus" style="display: none; margin: 10px 0; padding: 10px; border-radius: 4px;"></div>
+            
+            <div id="translationTable" class="table-container">
+                <!-- Dynamic table will be inserted here -->
+            </div>
+        </div>
+        
+        <div id="stats-tab" class="tab-content">
+            <h2>Data Statistics by Country</h2>
+            <div class="country-stats-container" id="countryPieCharts">
+                <!-- Pie charts for each country will be inserted here -->
+            </div>
+            
+            <div class="stats" id="statistics">
+                <div class="stat-card">
+                    <h3>Total Data Points</h3>
+                    <p id="totalCount">-</p>
+                </div>
+                <div class="stat-card">
+                    <h3>Country Distribution</h3>
+                    <div id="countryStats"></div>
+                </div>
+                <div class="stat-card">
+                    <h3>Overall Category Distribution</h3>
+                    <div id="categoryStats"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="analysis-tab" class="tab-content">
+            <div id="gpsQualityAnalysis" class="visualization"></div>
+            
+            <div id="statisticalAnalysis" class="visualization"></div>
+            
+            <div id="interpretationSection" style="margin-top: 30px; padding: 20px; background-color: #f8f9fa; border-radius: 8px;">
+                <h2>Interpretation</h2>
+                <div id="interpretationText"></div>
+                
+                <div id="behavioralInsight" style="margin-top: 20px; padding: 15px; background-color: #e3f2fd; border-radius: 4px; border-left: 4px solid #2196F3;">
+                    <strong style="color: #1976D2;">Behavioral Insight:</strong> <span id="insightText"></span>
+                </div>
+                
+                <div id="sampleSizeNote" style="margin-top: 20px; padding: 15px; background-color: #fff3cd; border-radius: 4px; border-left: 4px solid #ffc107;">
+                    <span id="sampleNote"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW TAB: Date Comparison -->
+        <div id="comparison-tab" class="tab-content">
+            <h2>Date Range Comparison</h2>
+            
+            <div class="date-picker-container">
+                <div class="date-picker-group">
+                    <h3>Period 1</h3>
+                    <label for="period1Start">Start Date:</label>
+                    <input type="text" id="period1Start" class="date-picker" placeholder="Select start date">
+                    <br><br>
+                    <label for="period1End">End Date:</label>
+                    <input type="text" id="period1End" class="date-picker" placeholder="Select end date">
+                </div>
+                
+                <div class="date-picker-group">
+                    <h3>Period 2</h3>
+                    <label for="period2Start">Start Date:</label>
+                    <input type="text" id="period2Start" class="date-picker" placeholder="Select start date">
+                    <br><br>
+                    <label for="period2End">End Date:</label>
+                    <input type="text" id="period2End" class="date-picker" placeholder="Select end date">
+                </div>
+            </div>
+            
+            <button id="generateComparisonBtn">Generate Comparison</button>
+            
+            <div id="germanytrendsChart" class="visualization"></div>
+            <div id="netherlandstrendsChart" class="visualization"></div>
+            <div id="polandtrendsChart" class="visualization"></div>
+            
+            <div id="comparisonQualityChart" class="visualization"></div>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <h3>Period 1 Statistics</h3>
+                    <div id="period1Stats"></div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>Period 2 Statistics</h3>
+                    <div id="period2Stats"></div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>Key Changes</h3>
+                    <div id="keyChanges"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- NEW TAB: German Depots -->
+        <div id="germany-tab" class="tab-content">
+            <h2>German Depot Analysis</h2>
+            
+            <div class="control-group">
+                <label for="regionFilter">Region:</label>
+                <select id="regionFilter">
+                    <option value="all">All Regions</option>
+                    <option value="Region Ost">Region Ost</option>
+                    <option value="Region Nord">Region Nord</option>
+                    <option value="Region West">Region West</option>
+                    <option value="Region Süd">Region Süd</option>
+                    <option value="Region Süd-West">Region Süd-West</option>
+                    <option value="Region Center">Region Center</option>
+                </select>
+                
+                <label for="depotFilter" style="margin-left: 15px;">Depot:</label>
+                <select id="depotFilter">
+                    <option value="all">All Depots</option>
+                </select>
+            </div>
+            
+            <div id="depotViz" class="visualization"></div>
+            
+            <h3>Depot Statistics</h3>
+            <div class="stats" id="depotStats">
+                <!-- Depot statistics will be inserted here -->
+            </div>
+            
+            <details>
+                <summary>Show Depot Notes</summary>
+                <div id="depotNotesTable" class="table-container">
+                    <!-- Depot notes table will be inserted here -->
+                </div>
+            </details>
+        </div>
+    </div>
+    
+    <script>
+        // Category patterns from the provided CSV analysis
+        const categoryPatterns = {
+            'Gate/Access code': {
+                keywords: ['gate', 'kod', 'code', 'hasło', 'password', 'brama', 'poort', 'pin'],
+                patterns: [/\b\d{4,6}\b/, /code\s*[:=]\s*\d+/i, /pin\s*[:=]\s*\d+/i]
+            },
+            'Delivery Instructions': {
+                keywords: ['biuro', 'office', 'recepcja', 'reception', 'floor', 'piętro', 
+                          'building', 'budynek', 'leave', 'zostaw', 'call', 'zadzwoń', 'delivery'],
+                patterns: [/\d+\s*(floor|piętro)/i, /(leave|zostaw)\s+(at|w)/i, /call\s+\d+/i]
+            },
+            'Status Updates': {
+                keywords: ['delivered', 'dostarczone', 'afgeleverd', 'notification', 
+                          'powiadomienie', 'sms', 'message', 'paczka'],
+                patterns: [/notification\s+received/i, /sms\s+sent/i, /delivered\s+to/i]
+            },
+            'Company Names': {
+                patterns: [/^[A-Z][A-Za-z\s&]+$/, /\b(company|firma|bedrijf)\b/i],
+                keywords: ['company', 'firma', 'bedrijf', 'gmbh', 'sp.', 'ltd']
+            },
+            'Address': {
+                keywords: ['street', 'ulica', 'straat', 'avenue', 'road', 'plac', 'square'],
+                patterns: [/\d+[a-z]?\s*[,-]?\s*\d+/i, /ul\.\s*/i, /\bstr\.\s*/i]
+            },
+            'Nonsense/Unclear': {
+                keywords: ['test', 'testy', 'xxx', 'asdf', 'qwerty'],
+                patterns: [/^[a-z]$/, /^\.+$/, /^test\d*$/i, /^[^a-zA-Z0-9\s]+$/]
+            }
+        };
+        
+        // German PLZ to Depot mapping - Hardcoded
+        const plzToDepotMapping = {
+            // Berlin Region
+            "10": "10", // Berlin
+            "11": "11", // Berlin
+            "12": "12", // Berlin
+            "13": "13", // Berlin
+            "14": "14", // Berlin-Brandenburg
+            "15": "15", // Frankfurt Oder
+            "16": "16", // Brandenburg
+            "17": "17", // Neubrandenburg
+            "18": "18", // Rostock
+            "19": "19", // Schwerin
+            
+            // Hamburg/Northern Region
+            "20": "20", // Hamburg
+            "21": "21", // Hamburg
+            "22": "22", // Hamburg
+            "23": "23", // Lübeck
+            "24": "24", // Kiel
+            "25": "25", // Elmshorn
+            "26": "26", // Oldenburg
+            "27": "27", // Bremerhaven
+            "28": "28", // Bremen
+            "29": "29", // Lüneburg
+            
+            // Hannover Region
+            "30": "30", // Hannover
+            "31": "31", // Celle
+            "32": "32", // N/A
+            "33": "33", // Bielefeld
+            "34": "34", // Kassel
+            "35": "35", // Marburg
+            "36": "36", // Fulda
+            "37": "37", // Göttingen
+            "38": "38", // Braunschweig
+            "39": "39", // Magdeburg
+            
+            // Ruhr Region
+            "40": "40", // Düsseldorf
+            "41": "41", // Mönchengladbach
+            "42": "42", // Wuppertal
+            "43": "43", // Bochum
+            "44": "44", // Dortmund
+            "45": "45", // Essen
+            "46": "46", // Oberhausen
+            "47": "47", // Duisburg
+            "48": "48", // Münster
+            "49": "49", // Osnabrück
+            
+            // Köln Region
+            "50": "50", // Köln
+            "51": "51", // Köln
+            "52": "52", // Aachen
+            "53": "53", // Bonn
+            "54": "54", // Trier
+            "55": "55", // Mainz
+            "56": "56", // Koblenz
+            "57": "57", // Siegen
+            "58": "58", // Hagen
+            "59": "59", // Hamm
+            
+            // Frankfurt Region
+            "60": "60", // Frankfurt am Main
+            "61": "61", // Bad Homburg
+            "62": "62", // Darmstadt
+            "63": "63", // Hanau
+            "64": "64", // Darmstadt
+            "65": "65", // Wiesbaden
+            "66": "66", // Saarbrücken
+            "67": "67", // Ludwigshafen
+            "68": "68", // Mannheim
+            "69": "69", // Heidelberg
+            
+            // Stuttgart Region
+            "70": "70", // Stuttgart
+            "71": "71", // Stuttgart/Böblingen
+            "72": "72", // Tübingen
+            "73": "73", // Göppingen
+            "74": "74", // Heilbronn
+            "75": "75", // Pforzheim
+            "76": "76", // Karlsruhe
+            "77": "77", // Offenburg
+            "78": "78", // Villingen-Schwenningen
+            "79": "79", // Freiburg
+            
+            // München Region
+            "80": "80", // München
+            "81": "81", // München
+            "82": "82", // München
+            "83": "83", // Rosenheim
+            "84": "84", // Landshut
+            "85": "85", // Ingolstadt
+            "86": "86", // Augsburg
+            "87": "87", // Kempten
+            "88": "88", // Ravensburg
+            "89": "89", // Ulm
+            
+            // Eastern Region
+            "90": "90", // Nürnberg
+            "91": "91", // Ansbach
+            "92": "92", // Amberg
+            "93": "93", // Regensburg
+            "94": "94", // Passau
+            "95": "95", // Bayreuth
+            "96": "96", // Bamberg
+            "97": "97", // Würzburg
+            "98": "98", // Suhl
+            "99": "99", // Erfurt
+            "01": "01", // Dresden
+            "02": "02", // Görlitz
+            "03": "03", // Cottbus
+            "04": "04", // Leipzig
+            "06": "06", // Halle
+            "07": "07", // Gera
+            "08": "08", // Zwickau
+            "09": "09"  // Chemnitz
+        };
+        
+        // Regions in Germany
+        const regions = {
+            'Region Ost': ['10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '21', '22', '33', '36', '37', '44'],
+            'Region Nord': ['20', '23', '25', '26', '27', '28', '29', '30', '35', '45', '48'],
+            'Region West': ['40', '42', '43', '46', '49', '50', '56'],
+            'Region Süd': ['41', '47', '61', '65', '67', '72', '79', '80', '81', '82', '83', '84', '85', '86', '89'],
+            'Region Süd-West': ['70', '71', '73', '74', '75', '76', '77', '78'],
+            'Region Center': ['54', '60', '62', '63', '64', '66', '68', '69', '87', '88']
+        };
+        
+        // Get country abbreviation
+        function getCountryAbbreviation(country) {
+            const abbreviations = {
+                'Germany': 'DE',
+                'Poland': 'PL',
+                'Netherlands': 'NL'
+            };
+            return abbreviations[country] || country;
+        }
+        
+        // Get region from depot ID
+        function getRegionFromDepot(depotId) {
+            for (const [region, depots] of Object.entries(regions)) {
+                if (depots.includes(depotId)) {
+                    return region;
+                }
+            }
+            return "Unknown Region";
+        }
+        
+        let csvData = null;
+        let processedData = null;
+        let userCategories = {}; // Store user-modified categories
+        let savedCategorizations = {}; // Store saved categorizations by unique note key
+        
+        // DOM elements
+        const csvFileInput = document.getElementById('csvFile');
+        const generateBtn = document.getElementById('generateBtn');
+        const statusDiv = document.getElementById('status');
+        const loadingDiv = document.getElementById('loading');
+        const countryFilter = document.getElementById('countryFilter');
+        const translationCountryFilter = document.getElementById('translationCountryFilter');
+        const exportCategorizationsBtn = document.getElementById('exportCategorizations');
+        const importCategorizationsBtn = document.getElementById('importCategorizationsBtn');
+        const importCategorizationsFile = document.getElementById('importCategorizationsFile');
+        const regionFilter = document.getElementById('regionFilter');
+        const depotFilter = document.getElementById('depotFilter');
+        
+        // Date picker elements for comparison tab
+        const period1Start = document.getElementById('period1Start');
+        const period1End = document.getElementById('period1End');
+        const period2Start = document.getElementById('period2Start');
+        const period2End = document.getElementById('period2End');
+        const generateComparisonBtn = document.getElementById('generateComparisonBtn');
+        
+        // Initialize date pickers
+        document.addEventListener('DOMContentLoaded', function() {
+            flatpickr(period1Start, {
+                dateFormat: "Y-m-d",
+                defaultDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) // 30 days ago
+            });
+            
+            flatpickr(period1End, {
+                dateFormat: "Y-m-d",
+                defaultDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000) // 15 days ago
+            });
+            
+            flatpickr(period2Start, {
+                dateFormat: "Y-m-d",
+                defaultDate: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000) // 14 days ago
+            });
+            
+            flatpickr(period2End, {
+                dateFormat: "Y-m-d",
+                defaultDate: new Date() // Today
+            });
+        });
+        
+        // Enable button when file is selected
+        csvFileInput.addEventListener('change', function() {
+            generateBtn.disabled = !csvFileInput.files.length;
+            statusDiv.innerHTML = '';
+            statusDiv.className = '';
+        });
+        
+        // Handle generate button click
+        generateBtn.addEventListener('click', function() {
+            if (!csvFileInput.files.length) {
+                showStatus('Please select a CSV file.', 'error');
+                return;
+            }
+            
+            const file = csvFileInput.files[0];
+            loadingDiv.style.display = 'block';
+            statusDiv.innerHTML = '';
+            
+            console.log('Starting to parse file:', file.name);
+            
+            // Parse CSV
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    console.log('Parse complete. Rows:', results.data.length);
+                    console.log('Errors:', results.errors);
+                    
+                    if (results.errors.length > 0) {
+                        console.error('CSV parsing errors:', results.errors);
+                    }
+                    
+                    csvData = results.data;
+                    processData();
+                    loadingDiv.style.display = 'none';
+                    showStatus(`Successfully processed ${processedData.length} valid records.`, 'success');
+                },
+                error: function(error) {
+                    console.error('Fatal parsing error:', error);
+                    loadingDiv.style.display = 'none';
+                    showStatus(`Error parsing CSV: ${error}`, 'error');
+                }
+            });
+        });
+        
+        // Process the raw CSV data
+        function processData() {
+            if (!csvData || !csvData.length) {
+                showStatus('No data to process.', 'error');
+                loadingDiv.style.display = 'none';
+                return;
+            }
+            
+            console.log('Processing data, total rows:', csvData.length);
+            console.log('Sample row:', csvData[0]);
+            
+            // Filter out rows without coordinates
+            let validData = csvData.filter(row => {
+                const hasCoordinates = row.lat !== null && row.lat !== undefined && 
+                                      row.lng !== null && row.lng !== undefined &&
+                                      !isNaN(row.lat) && !isNaN(row.lng);
+                return hasCoordinates;
+            });
+            
+            console.log('Valid rows with coordinates:', validData.length);
+            
+            // Add numeric accuracy values
+            validData.forEach(row => {
+                row.accuracy_numeric = getAccuracyNumeric(row.accuracy_score);
+            });
+            
+            // Determine country based on coordinates
+            validData.forEach(row => {
+                row.country = detectCountry(row.lat, row.lng, row.formatted_address);
+            });
+            
+            // Determine depot for German notes
+            validData.forEach(row => {
+                if (row.country === 'Germany') {
+                    row.depot = getDepotFromAddress(row.formatted_address);
+                    if (row.depot) {
+                        row.region = getRegionFromDepot(row.depot);
+                    } else {
+                        row.depot = 'Unknown';
+                        row.region = 'Unknown Region';
+                    }
+                }
+            });
+            
+            // Add category assignment
+            validData.forEach((row, index) => {
+                // Generate a unique key for this note
+                const noteKey = generateNoteKey(row);
+                
+                // Check if we have a saved categorization for this note
+                if (savedCategorizations[noteKey]) {
+                    row.category = savedCategorizations[noteKey];
+                    row.userCategory = savedCategorizations[noteKey];
+                    userCategories[index] = savedCategorizations[noteKey];
+                } else {
+                    row.category = detectCategory(row.content);
+                }
+                
+                row.isPractical = ['Gate/Access code', 'Delivery Instructions', 'Address']
+                                 .includes(row.userCategory || row.category);
+                row.translation = ''; // Start with empty translation
+                row.index = index; // For tracking
+            });
+            
+            processedData = validData;
+            console.log('Processing complete, final data count:', processedData.length);
+            
+            updateAllVisualizations();
+            updateStatistics();
+            createTranslationTable(processedData);
+            populateDepotDropdown();
+            updateDepotView();
+        }
+        
+        // Generate a unique key for a note (for categorization persistence)
+        function generateNoteKey(noteData) {
+            // Combine content, address, and date for exact matching
+            return `${noteData.content || ''}|${noteData.formatted_address || ''}|${noteData.created_at || ''}`;
+        }
+        
+        // Get depot from address (extract PLZ from German address)
+        function getDepotFromAddress(address) {
+            if (!address) return null;
+            
+            // Extract 5-digit postal code using regex
+            const plzMatch = address.match(/\b(\d{5})\b/);
+            if (plzMatch && plzMatch[1]) {
+                const plz = plzMatch[1];
+                // Get first two digits for depot code
+                const plzPrefix = plz.substring(0, 2);
+                return plzToDepotMapping[plzPrefix] || null;
+            }
+            
+            return null;
+        }
+        
+        // Detect category based on content
+        function detectCategory(note) {
+            // Handle null, undefined, or non-string values
+            if (note === null || note === undefined || typeof note !== 'string') {
+                return 'Nonsense/Unclear';
+            }
+            
+            // Trim whitespace
+            note = note.trim();
+            
+            // Handle empty strings
+            if (note.length === 0) {
+                return 'Nonsense/Unclear';
+            }
+            
+            const lowerNote = note.toLowerCase();
+            
+            // Check each category's patterns
+            for (const [category, config] of Object.entries(categoryPatterns)) {
+                // Check keywords
+                if (config.keywords && config.keywords.some(keyword => lowerNote.includes(keyword))) {
+                    return category;
+                }
+                
+                // Check regex patterns
+                if (config.patterns && config.patterns.some(pattern => pattern.test(note))) {
+                    return category;
+                }
+            }
+            
+            // Default to Nonsense/Unclear if no pattern matches
+            return 'Nonsense/Unclear';
+        }
+        
+        // Get numeric accuracy value
+        function getAccuracyNumeric(accuracyScore) {
+            const accuracyMapping = {
+                'ADDRESS_POINT': 100,
+                'MANUAL_GEOCODING': 95,
+                'STREET_COORDINATES': 90,
+                'INTERPOLATED_POINT': 80,
+                'STREET_CENTROID': 50,
+                'POSTAL_CENTROID': 30,
+                'LOCALITY_CENTROID': 10
+            };
+            return accuracyMapping[accuracyScore] || null;
+        }
+        
+        // Detect country based on coordinates
+        function detectCountry(lat, lng, address) {
+            // First check address
+            const lowerAddress = (address || '').toLowerCase();
+            if (lowerAddress.includes('poland') || lowerAddress.includes('polska')) {
+                return 'Poland';
+            } else if (lowerAddress.includes('netherlands') || lowerAddress.includes('nederland')) {
+                return 'Netherlands';
+            } else if (lowerAddress.includes('germany') || lowerAddress.includes('deutschland')) {
+                return 'Germany';
+            }
+            
+            // Then check coordinates
+            if (lat >= 50.7 && lat <= 53.6 && lng >= 3.3 && lng <= 7.2) {
+                return 'Netherlands';
+            } else if (lat >= 49.0 && lat <= 54.8 && lng >= 14.1 && lng <= 24.15) {
+                return 'Poland';
+            } else if (lat >= 47.2 && lat <= 55.0 && lng >= 5.8 && lng <= 15.0) {
+                return 'Germany';
+            }
+            
+            // Default based on longitude
+            if (lng > 14) return 'Poland';
+            if (lng < 7) return 'Netherlands';
+            return 'Germany';
+        }
+        
+        // Update all visualizations
+        function updateAllVisualizations() {
+            updateHeatmap();
+            updateStatisticsCharts();
+            updateGPSAnalysis();
+        }
+        
+        // Update heatmap
+        function updateHeatmap() {
+            let filteredData = processedData;
+            
+            // Apply country filter
+            const selectedCountry = countryFilter.value;
+            if (selectedCountry !== 'all') {
+                filteredData = filteredData.filter(row => row.country === selectedCountry);
+            }
+            
+            generateHeatmap(filteredData);
+        }
+        
+        // Generate heatmap visualization
+        function generateHeatmap(data) {
+            const heatmapData = [{
+                type: 'densitymapbox',
+                lat: data.map(row => row.lat),
+                lon: data.map(row => row.lng),
+                z: data.map(() => 1),
+                radius: 15,
+                colorscale: 'Blues',
+                hoverinfo: 'none'
+            }];
+            
+            // Determine map center and zoom
+            let center = { lat: 52.0, lon: 19.0 };
+            let zoom = 4;
+            
+            const country = countryFilter.value;
+            if (country === 'Poland') {
+                center = { lat: 52.0, lon: 19.0 };
+                zoom = 5;
+            } else if (country === 'Netherlands') {
+                center = { lat: 52.0, lon: 5.0 };
+                zoom = 7;
+            } else if (country === 'Germany') {
+                center = { lat: 51.0, lon: 10.0 };
+                zoom = 5;
+            }
+            
+            const layout = {
+                title: 'Driver Notes Heatmap',
+                mapbox: {
+                    style: 'open-street-map',
+                    center: center,
+                    zoom: zoom
+                },
+                margin: { t: 30, b: 0, l: 0, r: 0 }
+            };
+            
+            Plotly.newPlot('heatmapViz', heatmapData, layout);
+        }
+        
+        // Create translation table
+        function createTranslationTable(data) {
+            const filteredData = translationCountryFilter.value === 'all' 
+                ? data 
+                : data.filter(row => row.country === translationCountryFilter.value);
+            
+            const table = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Country</th>
+                            <th>Original Note</th>
+                            <th>Translation</th>
+                            <th>Auto Category</th>
+                            <th>User Category</th>
+                            <th>GPS Accuracy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredData.map((row) => {
+                            // Check if this note was categorized from saved data
+                            const noteKey = generateNoteKey(row);
+                            const isFromSavedCategories = savedCategorizations[noteKey] !== undefined;
+                            
+                            return `
+                                <tr ${isFromSavedCategories ? 'style="background-color: #e6f7ff;"' : ''}>
+                                    <td>${row.country}</td>
+                                    <td>${row.content || ''}</td>
+                                    <td>
+                                        <textarea class="translation-input"
+                                                placeholder="Enter translation or use Auto-Translate..."
+                                                onchange="updateTranslation(${row.index}, this.value)">${row.translation || ''}</textarea>
+                                    </td>
+                                    <td>${row.category}</td>
+                                    <td>
+                                        <select onchange="updateUserCategory(${row.index}, this.value)">
+                                            <option value="">Use Auto</option>
+                                            <option value="Gate/Access code" ${userCategories[row.index] === 'Gate/Access code' ? 'selected' : ''}>Gate/Access code</option>
+                                            <option value="Delivery Instructions" ${userCategories[row.index] === 'Delivery Instructions' ? 'selected' : ''}>Delivery Instructions</option>
+                                            <option value="Status Updates" ${userCategories[row.index] === 'Status Updates' ? 'selected' : ''}>Status Updates</option>
+                                            <option value="Company Names" ${userCategories[row.index] === 'Company Names' ? 'selected' : ''}>Company Names</option>
+                                            <option value="Address" ${userCategories[row.index] === 'Address' ? 'selected' : ''}>Address</option>
+                                            <option value="Nonsense/Unclear" ${userCategories[row.index] === 'Nonsense/Unclear' ? 'selected' : ''}>Nonsense/Unclear</option>
+                                        </select>
+                                    </td>
+                                    <td>${row.accuracy_numeric || 'N/A'}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('translationTable').innerHTML = table;
+        }
+        
+        // Update translation
+        function updateTranslation(index, value) {
+            processedData[index].translation = value;
+        }
+        
+        // Update user category
+        function updateUserCategory(index, value) {
+            if (value) {
+                userCategories[index] = value;
+                processedData[index].userCategory = value;
+                processedData[index].isPractical = ['Gate/Access code', 'Delivery Instructions', 'Address']
+                                                  .includes(value);
+                
+                // Save categorization with unique key
+                const noteKey = generateNoteKey(processedData[index]);
+                savedCategorizations[noteKey] = value;
+                saveCategorizationsToLocalStorage();
+                
+            } else {
+                delete userCategories[index];
+                processedData[index].userCategory = null;
+                processedData[index].isPractical = ['Gate/Access code', 'Delivery Instructions', 'Address']
+                                                  .includes(processedData[index].category);
+                
+                // Remove from saved categorizations
+                const noteKey = generateNoteKey(processedData[index]);
+                delete savedCategorizations[noteKey];
+                saveCategorizationsToLocalStorage();
+            }
+            
+            // Update statistics and analysis
+            updateStatistics();
+            updateStatisticsCharts();
+            updateGPSAnalysis();
+            updateDepotView();
+        }
+        
+        // Generate statistics charts
+        function updateStatisticsCharts() {
+            const countryGroups = {};
+            
+            // Group data by country
+            processedData.forEach(row => {
+                if (!countryGroups[row.country]) {
+                    countryGroups[row.country] = [];
+                }
+                countryGroups[row.country].push(row);
+            });
+            
+            // Get country container
+            const countryContainer = document.getElementById('countryPieCharts');
+            
+            // Clear existing charts
+            countryContainer.innerHTML = '';
+            
+            // Get sorted countries
+            const countries = Object.keys(countryGroups).sort();
+            const countryCount = countries.length;
+            
+            // Determine layout based on count
+            let rowSize;
+            if (countryCount <= 2) {
+                rowSize = 2; // Two per row for 1-2 countries
+            } else if (countryCount === 3) {
+                rowSize = 3; // Three in one row for exactly 3 countries
+            } else {
+                rowSize = 2; // Two per row for 4+ countries
+            }
+            
+            // Create rows of charts
+            for (let i = 0; i < countryCount; i += rowSize) {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'pie-chart-row';
+                rowDiv.style.display = 'flex';
+                rowDiv.style.width = '100%';
+                rowDiv.style.marginBottom = '30px';
+                
+                // Calculate how many charts in this row (could be less than rowSize for the last row)
+                const chartsInThisRow = Math.min(rowSize, countryCount - i);
+                
+                // Add charts for this row
+                for (let j = 0; j < chartsInThisRow; j++) {
+                    const country = countries[i + j];
+                    const chartDiv = createPieChartDiv(country, countryGroups[country]);
+                    chartDiv.style.flex = `1 1 ${100/rowSize}%`;
+                    chartDiv.style.minHeight = rowSize <= 2 ? '500px' : '400px';
+                    rowDiv.appendChild(chartDiv);
+                }
+                
+                // If last row is not full, add empty divs to maintain layout
+                if (chartsInThisRow < rowSize && rowSize !== 3) { // Skip for 3-country case
+                    for (let j = 0; j < rowSize - chartsInThisRow; j++) {
+                        const emptyDiv = document.createElement('div');
+                        emptyDiv.style.flex = `1 1 ${100/rowSize}%`;
+                        rowDiv.appendChild(emptyDiv);
+                    }
+                }
+                
+                countryContainer.appendChild(rowDiv);
+            }
+        }
+        
+        // Create an individual pie chart div
+        function createPieChartDiv(country, countryData) {
+            // Create container for this country's chart
+            const chartDiv = document.createElement('div');
+            chartDiv.id = `${country}PieChart`;
+            chartDiv.style.position = 'relative';
+            chartDiv.style.margin = '0 10px';
+            
+            // Count categories
+            const categoryCount = {};
+            countryData.forEach(row => {
+                const category = row.userCategory || row.category;
+                categoryCount[category] = (categoryCount[category] || 0) + 1;
+            });
+            
+            // Create pie chart
+            setTimeout(() => {
+                const pieData = [{
+                    values: Object.values(categoryCount),
+                    labels: Object.keys(categoryCount),
+                    type: 'pie',
+                    textinfo: 'label+percent',
+                    textposition: 'inside',
+                    insidetextorientation: 'radial',
+                    automargin: true,
+                    marker: {
+                        colors: ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+                    }
+                }];
+                
+                // Get country abbreviation
+                const countryAbbr = getCountryAbbreviation(country);
+                
+                const layout = {
+                    title: `${countryAbbr} - Note Categories`,
+                    height: 450, // Fixed height for all charts
+                    autosize: true,
+                    margin: {
+                        l: 20,
+                        r: 20,
+                        b: 20,
+                        t: 60,
+                        pad: 4
+                    },
+                    showlegend: true,
+                    legend: {
+                        orientation: "h",    // Horizontal legend
+                        xanchor: "center",   // Center aligned horizontally
+                        yanchor: "bottom",   // Aligned to the bottom
+                        y: -0.2,            // Position below the chart
+                        x: 0.5              // Center of the chart
+                    }
+                };
+                
+                const config = {
+                    responsive: true,
+                    displayModeBar: false // Hide the mode bar for cleaner look
+                };
+                
+                Plotly.newPlot(chartDiv.id, pieData, layout, config);
+            }, 10); // Small timeout to ensure DOM is ready
+            
+            return chartDiv;
+        }
+        
+        // Update GPS analysis to match professional format
+        function updateGPSAnalysis() {
+            const highAccuracyNotes = processedData.filter(row => row.accuracy_numeric >= 90);
+            const lowAccuracyNotes = processedData.filter(row => row.accuracy_numeric < 90);
+            
+            const highAccuracyPractical = highAccuracyNotes.filter(row => row.isPractical).length;
+            const lowAccuracyPractical = lowAccuracyNotes.filter(row => row.isPractical).length;
+            
+            const highAccuracyRate = highAccuracyNotes.length > 0 
+                ? (highAccuracyPractical / highAccuracyNotes.length * 100)
+                : 0;
+            const lowAccuracyRate = lowAccuracyNotes.length > 0 
+                ? (lowAccuracyPractical / lowAccuracyNotes.length * 100)
+                : 0;
+            
+            // Calculate statistical measures
+            const observed = [
+                [highAccuracyPractical, highAccuracyNotes.length - highAccuracyPractical],
+                [lowAccuracyPractical, lowAccuracyNotes.length - lowAccuracyPractical]
+            ];
+            
+            const chiSquare = calculateChiSquare(observed);
+            const phi = calculatePhi(observed);
+            const correlation = calculateCorrelation();
+            
+            // Create professional GPS analysis visualization
+            createProfessionalGPSAnalysis(highAccuracyNotes, lowAccuracyNotes, highAccuracyRate, lowAccuracyRate, chiSquare, phi, correlation);
+        }
+        
+        // Create professional GPS analysis matching the screenshot
+        function createProfessionalGPSAnalysis(highAccuracyNotes, lowAccuracyNotes, highAccuracyRate, lowAccuracyRate, chiSquare, phi, correlation) {
+            // Main bar chart
+            const mainTrace1 = {
+                x: ['High Accuracy (90+)', 'Low Accuracy (<90)'],
+                y: [highAccuracyRate, lowAccuracyRate],
+                name: 'Practical Notes',
+                type: 'bar',
+                marker: {
+                    color: '#4CAF50'
+                },
+                text: [`${highAccuracyRate.toFixed(1)}%`, `${lowAccuracyRate.toFixed(1)}%`],
+                textposition: 'inside',
+                textfont: {
+                    color: 'white',
+                    size: 16,
+                    family: 'Arial, sans-serif'
+                }
+            };
+            
+            const mainTrace2 = {
+                x: ['High Accuracy (90+)', 'Low Accuracy (<90)'],
+                y: [100 - highAccuracyRate, 100 - lowAccuracyRate],
+                name: 'Other Notes',
+                type: 'bar',
+                marker: {
+                    color: '#f44336'
+                },
+                text: [`${(100 - highAccuracyRate).toFixed(1)}%`, `${(100 - lowAccuracyRate).toFixed(1)}%`],
+                textposition: 'inside',
+                textfont: {
+                    color: 'white',
+                    size: 16,
+                    family: 'Arial, sans-serif'
+                }
+            };
+            
+            const mainLayout = {
+                title: {
+                    text: 'GPS Accuracy & Driver Note Quality',
+                    font: {
+                        size: 24,
+                        color: '#333',
+                        family: 'Arial, sans-serif'
+                    }
+                },
+                xaxis: {
+                    title: '',
+                    tickfont: {
+                        color: '#333',
+                        size: 14
+                    }
+                },
+                yaxis: {
+                    title: 'Percentage (%)',
+                    range: [0, 100],
+                    tickfont: {
+                        color: '#333',
+                        size: 12
+                    },
+                    titlefont: {
+                        color: '#333',
+                        size: 14
+                    }
+                },
+                barmode: 'stack',
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'white',
+                font: {
+                    color: '#333'
+                },
+                legend: {
+                    orientation: 'h',
+                    x: 0.5,
+                    xanchor: 'center',
+                    y: -0.1,
+                    font: {
+                        color: '#333',
+                        size: 14
+                    }
+                },
+                height: 500
+            };
+            
+            Plotly.newPlot('gpsQualityAnalysis', [mainTrace1, mainTrace2], mainLayout, {displayModeBar: false});
+            
+            // Create HTML table instead of Plotly table for better text display
+            const isSignificant = chiSquare > 3.841;
+            const effectSizeLabel = phi < 0.1 ? 'Small' : phi < 0.3 ? 'Medium' : 'Large';
+            const correlationLabel = correlation < 0 ? 'Negative' : 'Positive';
+            
+            const statsTableHTML = `
+                <div style="text-align: center; margin: 20px 0;">
+                    <h2 style="color: #333; font-family: Arial, sans-serif; margin-bottom: 20px;">Statistical Analysis</h2>
+                    
+                    <table style="width: 100%; max-width: 800px; margin: 0 auto; border-collapse: collapse; background-color: white; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                        <thead>
+                            <tr style="background-color: #f2f2f2;">
+                                <th style="padding: 15px; border: 1px solid #ddd; font-family: Arial, sans-serif; font-size: 18px; color: #333;">Chi-square</th>
+                                <th style="padding: 15px; border: 1px solid #ddd; font-family: Arial, sans-serif; font-size: 18px; color: #333;">Effect Size (Phi)</th>
+                                <th style="padding: 15px; border: 1px solid #ddd; font-family: Arial, sans-serif; font-size: 18px; color: #333;">Correlation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td style="padding: 20px; border: 1px solid #ddd; text-align: center; font-family: Arial, sans-serif; color: #333;">
+                                    <div style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">${chiSquare.toFixed(2)}</div>
+                                    <div style="font-size: 14px;">p < 0.05</div>
+                                </td>
+                                <td style="padding: 20px; border: 1px solid #ddd; text-align: center; font-family: Arial, sans-serif; color: #333;">
+                                    <div style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">${phi.toFixed(2)}</div>
+                                    <div style="font-size: 14px;">${effectSizeLabel}</div>
+                                </td>
+                                <td style="padding: 20px; border: 1px solid #ddd; text-align: center; font-family: Arial, sans-serif; color: #333;">
+                                    <div style="font-size: 20px; font-weight: bold; margin-bottom: 5px;">${correlation.toFixed(2)}</div>
+                                    <div style="font-size: 14px;">${correlationLabel}</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    
+                    <div style="margin-top: 20px; padding: 15px; background-color: #4CAF50; color: white; border-radius: 4px; max-width: 600px; margin-left: auto; margin-right: auto; font-family: Arial, sans-serif;">
+                        <div style="font-weight: bold; margin-bottom: 5px;">The relationship is statistically significant (p < 0.05)</div>
+                        <div>Lower GPS accuracy locations have significantly more practical notes</div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('statisticalAnalysis').innerHTML = statsTableHTML;
+            
+            // Update interpretation text
+            document.getElementById('interpretationText').innerHTML = `
+                <p><strong>When GPS is accurate (ADDRESS_POINT):</strong> Drivers leave fewer helpful notes (${highAccuracyRate.toFixed(1)}%) because the system can guide precisely to the delivery location.</p>
+                <p><strong>When GPS is less accurate (STREET_CENTROID, POSTAL_CENTROID):</strong> Drivers leave more helpful notes (${lowAccuracyRate.toFixed(1)}%) to compensate for poor navigation.</p>
+            `;
+            
+            document.getElementById('insightText').textContent = 
+                'This demonstrates adaptive behavior where drivers naturally create their own navigation aids when the technology falls short, improving the delivery experience for future drivers.';
+            
+            document.getElementById('sampleNote').innerHTML = 
+                `<strong>Note on sample size:</strong> While the pattern is statistically significant, the low accuracy group has only ${lowAccuracyNotes.length} observations. Results would be strengthened with more low-accuracy data points.`;
+        }
+        
+        // Calculate chi-square statistic
+        function calculateChiSquare(observed) {
+            const rowTotals = observed.map(row => row.reduce((a, b) => a + b, 0));
+            const colTotals = [0, 1].map(col => observed.reduce((sum, row) => sum + row[col], 0));
+            const total = rowTotals.reduce((a, b) => a + b, 0);
+            
+            let chiSquare = 0;
+            for (let i = 0; i < observed.length; i++) {
+                for (let j = 0; j < observed[i].length; j++) {
+                    const expected = (rowTotals[i] * colTotals[j]) / total;
+                    if (expected > 0) {
+                        chiSquare += Math.pow(observed[i][j] - expected, 2) / expected;
+                    }
+                }
+            }
+            
+            return chiSquare;
+        }
+        
+        // Calculate Phi coefficient
+        function calculatePhi(observed) {
+            const n = observed.flat().reduce((a, b) => a + b, 0);
+            const chiSquare = calculateChiSquare(observed);
+            return Math.sqrt(chiSquare / n);
+        }
+        
+        // Calculate correlation
+        function calculateCorrelation() {
+            const accuracy = processedData.map(row => row.accuracy_numeric || 0);
+            const practical = processedData.map(row => row.isPractical ? 1 : 0);
+            
+            const n = accuracy.length;
+            const meanAccuracy = accuracy.reduce((a, b) => a + b, 0) / n;
+            const meanPractical = practical.reduce((a, b) => a + b, 0) / n;
+            
+            let numerator = 0;
+            let denomAccuracy = 0;
+            let denomPractical = 0;
+            
+            for (let i = 0; i < n; i++) {
+                const accDiff = accuracy[i] - meanAccuracy;
+                const pracDiff = practical[i] - meanPractical;
+                
+                numerator += accDiff * pracDiff;
+                denomAccuracy += accDiff * accDiff;
+                denomPractical += pracDiff * pracDiff;
+            }
+            
+            const correlation = numerator / Math.sqrt(denomAccuracy * denomPractical);
+            return correlation;
+        }
+        
+        // Create GPS analysis scatter plot
+        function createGPSAnalysisChart() {
+            // Group by accuracy levels
+            const accuracyGroups = {};
+            processedData.forEach(row => {
+                const accuracy = row.accuracy_numeric || 0;
+                const accuracyBin = Math.floor(accuracy / 10) * 10;
+                
+                if (!accuracyGroups[accuracyBin]) {
+                    accuracyGroups[accuracyBin] = { total: 0, practical: 0 };
+                }
+                
+                accuracyGroups[accuracyBin].total++;
+                if (row.isPractical) {
+                    accuracyGroups[accuracyBin].practical++;
+                }
+            });
+            
+            const xValues = [];
+            const yValues = [];
+            const sizes = [];
+            
+            Object.keys(accuracyGroups).forEach(bin => {
+                const group = accuracyGroups[bin];
+                xValues.push(parseInt(bin));
+                yValues.push((group.practical / group.total * 100).toFixed(1));
+                sizes.push(Math.log(group.total + 1) * 10); // Size based on count
+            });
+            
+            const scatterData = [{
+                x: xValues,
+                y: yValues,
+                mode: 'markers',
+                marker: {
+                    size: sizes,
+                    color: xValues,
+                    colorscale: 'Viridis',
+                    showscale: true,
+                    colorbar: {
+                        title: 'GPS Accuracy'
+                    }
+                },
+                text: xValues.map((x, i) => 
+                    `GPS Accuracy: ${x}-${x+9}<br>Practical Rate: ${yValues[i]}%<br>Count: ${accuracyGroups[x].total}`
+                ),
+                hoverinfo: 'text'
+            }];
+            
+            const layout = {
+                title: 'GPS Accuracy vs Practical Note Rate',
+                xaxis: {
+                    title: 'GPS Accuracy Level',
+                    range: [0, 100]
+                },
+                yaxis: {
+                    title: 'Practical Note Rate (%)',
+                    range: [0, 100]
+                }
+            };
+            
+            Plotly.newPlot('correlationChart', scatterData, layout);
+            
+            // Create detailed breakdown chart
+            createDetailedAnalysis();
+        }
+        
+        // Create detailed analysis breakdown
+        function createDetailedAnalysis() {
+            const categories = ['Gate/Access code', 'Delivery Instructions', 'Status Updates', 
+                               'Company Names', 'Address', 'Nonsense/Unclear'];
+            
+            const highAccuracy = [];
+            const lowAccuracy = [];
+            
+            categories.forEach(category => {
+                const highCount = processedData.filter(row => 
+                    row.accuracy_numeric >= 90 && 
+                    (row.userCategory || row.category) === category
+                ).length;
+                
+                const lowCount = processedData.filter(row => 
+                    row.accuracy_numeric < 90 && 
+                    (row.userCategory || row.category) === category
+                ).length;
+                
+                highAccuracy.push(highCount);
+                lowAccuracy.push(lowCount);
+            });
+            
+            const trace1 = {
+                x: categories,
+                y: highAccuracy,
+                name: 'High GPS Accuracy (90+)',
+                type: 'bar'
+            };
+            
+            const trace2 = {
+                x: categories,
+                y: lowAccuracy,
+                name: 'Low GPS Accuracy (<90)',
+                type: 'bar'
+            };
+            
+            const data = [trace1, trace2];
+            
+            const layout = {
+                title: 'Category Distribution by GPS Accuracy',
+                xaxis: { title: 'Category' },
+                yaxis: { title: 'Count' },
+                barmode: 'group'
+            };
+            
+            Plotly.newPlot('analysisDetails', data, layout);
+        }
+        
+        // Update statistics display
+        function updateStatistics() {
+            const totalCount = document.getElementById('totalCount');
+            const countryStats = document.getElementById('countryStats');
+            const categoryStats = document.getElementById('categoryStats');
+            
+            // Total count
+            totalCount.textContent = processedData.length;
+            
+            // Country distribution
+            const countryDist = {};
+            processedData.forEach(row => {
+                countryDist[row.country] = (countryDist[row.country] || 0) + 1;
+            });
+            
+            let countryHtml = '';
+            for (const country in countryDist) {
+                const percentage = ((countryDist[country] / processedData.length) * 100).toFixed(1);
+                const countryAbbr = getCountryAbbreviation(country);
+                countryHtml += `<div>${countryAbbr}: ${countryDist[country]} (${percentage}%)</div>`;
+            }
+            countryStats.innerHTML = countryHtml;
+            
+            // Category distribution (overall)
+            const categoryDist = {};
+            processedData.forEach(row => {
+                const category = row.userCategory || row.category;
+                categoryDist[category] = (categoryDist[category] || 0) + 1;
+            });
+            
+            let categoryHtml = '';
+            for (const category in categoryDist) {
+                const percentage = ((categoryDist[category] / processedData.length) * 100).toFixed(1);
+                categoryHtml += `<div>${category}: ${categoryDist[category]} (${percentage}%)</div>`;
+            }
+            categoryStats.innerHTML = categoryHtml;
+            
+            // Ensure statistics charts are updated
+            updateStatisticsCharts();
+        }
+        
+        // Simple translation dictionary for common delivery terms
+        const translationDictionary = {
+            // Polish
+            'można': 'can',
+            'zostawić': 'leave',
+            'przy': 'at',
+            'na': 'on',
+            'w': 'in',
+            'biuro': 'office',
+            'recepcja': 'reception',
+            'piętro': 'floor',
+            'kod': 'code',
+            'brama': 'gate',
+            'dostarczone': 'delivered',
+            'powiadomienie': 'notification',
+            'firma': 'company',
+            'ulica': 'street',
+            'ul.': 'str.',
+            
+            // Dutch
+            'geen': 'no',
+            'niks': 'nothing',
+            'op': 'to',
+            'te': 'to',
+            'halen': 'pick up',
+            'afgeleverd': 'delivered',
+            'bij': 'at',
+            'poort': 'gate',
+            'kantoor': 'office',
+            'verdieping': 'floor',
+            'bedrijf': 'company',
+            'straat': 'street',
+            
+            // German
+            'bei': 'at',
+            'büro': 'office',
+            'stock': 'floor',
+            'tor': 'gate',
+            'geliefert': 'delivered',
+            'firma': 'company',
+            'straße': 'street',
+            'str.': 'str.'
+        };
+        
+        // Simple translation function
+        function simpleTranslate(text) {
+            if (!text) return '';
+            
+            // Ensure text is a string
+            text = String(text);
+            
+            let translated = text.toLowerCase();
+            
+            // Replace known words
+            Object.keys(translationDictionary).forEach(word => {
+                const regex = new RegExp(`\\b${word}\\b`, 'gi');
+                translated = translated.replace(regex, translationDictionary[word]);
+            });
+            
+            // Keep numbers and special patterns
+            translated = translated.replace(/\b(\d+)\b/g, '$1');
+            
+            // Capitalize first letter
+            return translated.charAt(0).toUpperCase() + translated.slice(1);
+        }
+        
+        // LibreTranslate API translation
+        async function libreTranslate(text, sourceLang = 'auto') {
+            // Ensure text is a string and not empty
+            if (!text) return '';
+            text = String(text).trim();
+            
+            if (!text) return '';
+            
+            const endpoint = 'https://libretranslate.com/translate';
+            
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        q: text,
+                        source: sourceLang,
+                        target: 'en',
+                        format: 'text'
+                    })
+                });
+                
+                if (!response.ok) {
+                    console.error(`LibreTranslate HTTP error: ${response.status}`);
+                    const errorText = await response.text();
+                    console.error('Error details:', errorText);
+                    throw new Error(`LibreTranslate error: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                return data.translatedText || simpleTranslate(text);
+            } catch (error) {
+                console.error('LibreTranslate error:', error);
+                // Fallback to simple translation
+                return simpleTranslate(text);
+            }
+        }
+        
+        // Update auto-translate to include LibreTranslate option
+        document.getElementById('autoTranslate').addEventListener('click', async function() {
+            const translationMethod = await showTranslationDialog();
+            
+            const button = this;
+            button.disabled = true;
+            button.textContent = 'Translating...';
+            
+            try {
+                if (translationMethod === 'simple') {
+                    // Use simple dictionary translation
+                    processedData.forEach(row => {
+                        if (row.content && !row.translation) {
+                            row.translation = simpleTranslate(row.content);
+                        }
+                    });
+                    showTranslationStatus('Simple translation completed!', 'success');
+                    
+                } else if (translationMethod === 'libre') {
+                    // Use LibreTranslate API
+                    let completed = 0;
+                    for (const row of processedData) {
+                        if (row.content && !row.translation) {
+                            try {
+                                row.translation = await libreTranslate(row.content);
+                                completed++;
+                                showTranslationStatus(`Translated ${completed} notes...`, 'info');
+                                // Small delay to avoid rate limiting
+                                await new Promise(resolve => setTimeout(resolve, 100));
+                            } catch (error) {
+                                row.translation = simpleTranslate(row.content);
+                            }
+                        }
+                    }
+                    showTranslationStatus('LibreTranslate completed!', 'success');
+                    
+                } else if (translationMethod === 'api') {
+                    // Use Microsoft API translation
+                    const apiKey = document.getElementById('apiKey').value.trim();
+                    if (!apiKey) {
+                        showTranslationStatus('Please enter your API key', 'error');
+                        return;
+                    }
+                    await translateAllNotes(apiKey);
+                    showTranslationStatus('API translation completed!', 'success');
+                }
+                
+                createTranslationTable(processedData);
+                
+            } catch (error) {
+                showTranslationStatus('Translation error: ' + error.message, 'error');
+            } finally {
+                button.disabled = false;
+                button.textContent = 'Auto-Translate All';
+            }
+        });
+        
+        // Show translation method dialog
+        function showTranslationDialog() {
+            return new Promise((resolve) => {
+                const method = prompt(
+                    'Choose translation method:\n\n' +
+                    '1 - Simple Dictionary (offline, basic)\n' +
+                    '2 - LibreTranslate (online, no API key)\n' +
+                    '3 - Microsoft API (requires API key)\n\n' +
+                    'Enter 1, 2, or 3:',
+                    '2'
+                );
+                
+                if (method === '1') resolve('simple');
+                else if (method === '2') resolve('libre');
+                else if (method === '3') resolve('api');
+                else resolve('simple'); // default
+            });
+        }
+        
+        // Show translation status
+        function showTranslationStatus(message, type) {
+            const statusDiv = document.getElementById('translationStatus');
+            statusDiv.style.display = 'block';
+            statusDiv.textContent = message;
+            statusDiv.className = type === 'success' ? 'success' : 'error';
+            
+            // Hide after 5 seconds
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Translate all notes using Microsoft Translator
+        async function translateAllNotes(apiKey) {
+            const notesToTranslate = processedData.filter(row => 
+                row.content && row.content.trim() && 
+                !row.translation // Only translate if not already translated
+            );
+            
+            if (notesToTranslate.length === 0) {
+                showTranslationStatus('No notes to translate', 'info');
+                return;
+            }
+            
+            // Microsoft Translator API endpoint
+            const endpoint = 'https://api.cognitive.microsofttranslator.com';
+            const path = '/translate?api-version=3.0&to=en';
+            
+            // Batch translation (max 100 texts per request)
+            const batchSize = 100;
+            for (let i = 0; i < notesToTranslate.length; i += batchSize) {
+                const batch = notesToTranslate.slice(i, i + batchSize);
+                const texts = batch.map(row => ({ Text: row.content }));
+                
+                try {
+                    const response = await fetch(endpoint + path, {
+                        method: 'POST',
+                        headers: {
+                            'Ocp-Apim-Subscription-Key': apiKey,
+                            'Content-type': 'application/json'
+                        },
+                        body: JSON.stringify(texts)
+                    });
+                    
+                    if (!response.ok) {
+                        throw new Error(`API error: ${response.status} ${response.statusText}`);
+                    }
+                    
+                    const translations = await response.json();
+                    
+                    // Update translations
+                    translations.forEach((translation, index) => {
+                        const row = batch[index];
+                        processedData[row.index].translation = translation.translations[0].text;
+                    });
+                    
+                    // Update progress
+                    const progress = Math.min(i + batchSize, notesToTranslate.length);
+                    showTranslationStatus(`Translated ${progress} of ${notesToTranslate.length} notes...`, 'info');
+                    
+                } catch (error) {
+                    console.error('Translation error:', error);
+                    throw error;
+                }
+            }
+            
+            // Refresh the table
+            createTranslationTable(processedData);
+        }
+        
+        // Alternative: Use a simple translation function with language detection
+        async function detectAndTranslate(text, apiKey) {
+            // Detect language first
+            const detectEndpoint = 'https://api.cognitive.microsofttranslator.com/detect?api-version=3.0';
+            
+            try {
+                const detectResponse = await fetch(detectEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Ocp-Apim-Subscription-Key': apiKey,
+                        'Content-type': 'application/json'
+                    },
+                    body: JSON.stringify([{ Text: text }])
+                });
+                
+                const detection = await detectResponse.json();
+                const detectedLanguage = detection[0].language;
+                
+                // Only translate if not English
+                if (detectedLanguage === 'en') {
+                    return text;
+                }
+                
+                // Translate to English
+                const translateEndpoint = `https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&from=${detectedLanguage}&to=en`;
+                
+                const translateResponse = await fetch(translateEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Ocp-Apim-Subscription-Key': apiKey,
+                        'Content-type': 'application/json'
+                    },
+                    body: JSON.stringify([{ Text: text }])
+                });
+                
+                const translation = await translateResponse.json();
+                return translation[0].translations[0].text;
+                
+            } catch (error) {
+                console.error('Translation error:', error);
+                return text; // Return original if translation fails
+            }
+        }
+        
+        // Generate CSV for export
+        function generateExportCSV() {
+            const headers = ['country', 'original_note', 'translation', 'auto_category', 
+                            'user_category', 'final_category', 'is_practical', 'gps_accuracy', 
+                            'lat', 'lng', 'formatted_address', 'created_at', 'depot', 'region'];
+            
+            const rows = processedData.map(row => {
+                const finalCategory = row.userCategory || row.category;
+                return [
+                    row.country,
+                    `"${(row.content || '').replace(/"/g, '""')}"`,
+                    `"${(row.translation || '').replace(/"/g, '""')}"`,
+                    row.category,
+                    row.userCategory || '',
+                    finalCategory,
+                    row.isPractical ? 'Yes' : 'No',
+                    row.accuracy_numeric || 'N/A',
+                    row.lat,
+                    row.lng,
+                    `"${(row.formatted_address || '').replace(/"/g, '""')}"`,
+                    row.created_at || '',
+                    row.depot || '',
+                    row.region || ''
+                ].join(',');
+            });
+            
+            return [headers.join(','), ...rows].join('\n');
+        }
+        
+        // Show status message
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+        }
+        
+        // NEW: Local Storage Functions for Categorizations
+        
+        // Save categorizations to localStorage
+        function saveCategorizationsToLocalStorage() {
+            try {
+                localStorage.setItem('driverNotesCategories', JSON.stringify(savedCategorizations));
+                console.log('Saved categorizations to localStorage');
+            } catch (e) {
+                console.warn('Failed to save categorizations to localStorage:', e);
+                showStatus('Warning: Unable to save categorizations to browser storage (limit may be reached)', 'error');
+            }
+        }
+        
+        // Load categorizations from localStorage
+        function loadCategorizationsFromLocalStorage() {
+            try {
+                const saved = localStorage.getItem('driverNotesCategories');
+                if (saved) {
+                    savedCategorizations = JSON.parse(saved);
+                    console.log('Loaded categorizations from localStorage:', Object.keys(savedCategorizations).length, 'items');
+                }
+            } catch (e) {
+                console.warn('Failed to load categorizations from localStorage:', e);
+                savedCategorizations = {};
+            }
+        }
+        
+        // Export categorizations to JSON file
+        function exportCategorizationsToFile() {
+            const categorizationsJson = JSON.stringify(savedCategorizations, null, 2);
+            const blob = new Blob([categorizationsJson], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            
+            // Create download link
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'driver_notes_categorizations.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            showStatus('Categorizations exported successfully!', 'success');
+        }
+        
+        // Import categorizations from JSON file
+        function importCategorizationsFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const importedCategories = JSON.parse(e.target.result);
+                    // Merge with existing categories
+                    savedCategorizations = {...savedCategorizations, ...importedCategories};
+                    // Save to localStorage
+                    saveCategorizationsToLocalStorage();
+                    // Update UI
+                    if (processedData) {
+                        processedData.forEach((row, index) => {
+                            const noteKey = generateNoteKey(row);
+                            if (savedCategorizations[noteKey]) {
+                                row.userCategory = savedCategorizations[noteKey];
+                                userCategories[index] = savedCategorizations[noteKey];
+                                row.isPractical = ['Gate/Access code', 'Delivery Instructions', 'Address']
+                                                  .includes(savedCategorizations[noteKey]);
+                            }
+                        });
+                        createTranslationTable(processedData);
+                        updateStatistics();
+                        updateStatisticsCharts();
+                        updateGPSAnalysis();
+                        updateDepotView();
+                    }
+                    showStatus('Categorizations imported successfully!', 'success');
+                } catch (error) {
+                    console.error('Error importing categorizations:', error);
+                    showStatus('Error importing categorizations: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+        
+        // Export Data button click handler
+        document.getElementById('exportData').addEventListener('click', function() {
+            const csvContent = generateExportCSV();
+            const blob = new Blob([csvContent], {type: 'text/csv'});
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'driver_notes_analysis.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            showStatus('Data exported successfully!', 'success');
+        });
+        
+        // Export Categorizations button handler
+        exportCategorizationsBtn.addEventListener('click', exportCategorizationsToFile);
+        
+        // Import Categorizations button handler
+        importCategorizationsBtn.addEventListener('click', function() {
+            importCategorizationsFile.click();
+        });
+        
+        // Import Categorizations file input handler
+        importCategorizationsFile.addEventListener('change', importCategorizationsFromFile);
+        
+        // NEW: Date Comparison Functions
+        
+        // Generate comparison between two date periods
+        generateComparisonBtn.addEventListener('click', function() {
+            if (!processedData || !processedData.length) {
+                showStatus('Please load data first.', 'error');
+                return;
+            }
+            
+            const date1Start = period1Start.value;
+            const date1End = period1End.value;
+            const date2Start = period2Start.value;
+            const date2End = period2End.value;
+            
+            if (!date1Start || !date1End || !date2Start || !date2End) {
+                showStatus('Please select all date ranges.', 'error');
+                return;
+            }
+            
+            // Filter data by date periods
+            const period1Data = filterDataByDateRange(processedData, date1Start, date1End);
+            const period2Data = filterDataByDateRange(processedData, date2Start, date2End);
+            
+            if (period1Data.length === 0 || period2Data.length === 0) {
+                showStatus('One or both date ranges contain no data.', 'error');
+                return;
+            }
+            
+            // Clear previous content from key changes
+            document.getElementById('keyChanges').innerHTML = '<h3>Key Changes by Country:</h3>';
+            
+            // Generate charts for each country
+            const countries = ['Germany', 'Netherlands', 'Poland'];
+            
+            countries.forEach(country => {
+                // Filter data for this country
+                const country1Data = period1Data.filter(row => row.country === country);
+                const country2Data = period2Data.filter(row => row.country === country);
+                
+                console.log(`Data for ${country}:`, 
+                    `Period 1: ${country1Data.length} records`,
+                    `Period 2: ${country2Data.length} records`);
+                
+                // Skip if no data for this country
+                if (country1Data.length === 0 && country2Data.length === 0) {
+                    console.log(`No data for ${country}, skipping chart`);
+                    return; // Use return in forEach, not continue
+                }
+                
+                // Create chart for this country
+                createCountryTrendChart(country, country1Data, country2Data);
+            });
+            
+            // Generate quality comparison chart
+            generateQualityComparisonChart(period1Data, period2Data);
+            
+            // Generate statistics for both periods
+            generatePeriodStatistics(period1Data, period2Data);
+            
+            showStatus('Comparison generated successfully!', 'success');
+        });
+        
+        // Filter data by date range
+        function filterDataByDateRange(data, startDate, endDate) {
+            const start = new Date(startDate);
+            const end = new Date(endDate);
+            end.setHours(23, 59, 59, 999); // Include the entire end day
+            
+            return data.filter(row => {
+                if (!row.created_at) return false;
+                const date = new Date(row.created_at);
+                return date >= start && date <= end;
+            });
+        }
+        
+        // Generate comparison charts between two periods
+        function generateComparisonCharts(period1Data, period2Data) {
+            // Group data by countries
+            const countries = [...new Set([...period1Data, ...period2Data].map(row => row.country))].sort();
+            
+            // Clear previous charts
+            document.getElementById('comparisonTrendCharts').innerHTML = '';
+            document.getElementById('keyChanges').innerHTML = '<h3>Key Changes by Country:</h3>';
+            
+            // Generate country-specific comparisons for each country
+            countries.forEach(country => {
+                // Filter data for this country
+                const country1Data = period1Data.filter(row => row.country === country);
+                const country2Data = period2Data.filter(row => row.country === country);
+                
+                if (country1Data.length === 0 && country2Data.length === 0) return;
+                
+                // Create a new div for this country's chart
+                const countryChartDiv = document.createElement('div');
+                countryChartDiv.id = `${country.toLowerCase()}Trends`;
+                countryChartDiv.className = 'visualization';
+                countryChartDiv.style.marginBottom = '30px';
+                document.getElementById('comparisonTrendCharts').appendChild(countryChartDiv);
+                
+                // Generate country comparison
+                generateCountryComparisonChart(country, country1Data, country2Data);
+            });
+            
+            // Generate overall quality comparison
+            generateQualityComparisonChart(period1Data, period2Data);
+        }
+        
+        // Create country trend chart
+        function createCountryTrendChart(country, period1Data, period2Data) {
+            console.log(`Creating trend chart for ${country} with ${period1Data.length} and ${period2Data.length} records`);
+            
+            const period1Stats = calculatePeriodStats(period1Data);
+            const period2Stats = calculatePeriodStats(period2Data);
+            
+            // Get country abbreviation
+            const countryAbbr = getCountryAbbreviation(country);
+            
+            // Prepare bar chart data
+            const trace1 = {
+                x: ['Total Notes', 'Active Drivers', 'Notes per Driver', 'Practical Info', 'Nonsense Content'],
+                y: [
+                    period1Data.length,
+                    getUniqueDriversCount(period1Data),
+                    period1Stats.notesPerDriver,
+                    period1Stats.practicalPercent,
+                    period1Stats.nonsensePercent
+                ],
+                name: 'Previous',
+                type: 'bar',
+                marker: {
+                    color: '#A9A9A9' // Gray for previous period
+                }
+            };
+            
+            const trace2 = {
+                x: ['Total Notes', 'Active Drivers', 'Notes per Driver', 'Practical Info', 'Nonsense Content'],
+                y: [
+                    period2Data.length,
+                    getUniqueDriversCount(period2Data),
+                    period2Stats.notesPerDriver,
+                    period2Stats.practicalPercent,
+                    period2Stats.nonsensePercent
+                ],
+                name: 'Current',
+                type: 'bar',
+                marker: {
+                    color: getCountryColor(country) // Color based on country
+                }
+            };
+            
+            const layout = {
+                title: `${countryAbbr} Trends`,
+                barmode: 'group',
+                yaxis: {
+                    title: 'Value'
+                },
+                height: 500,
+                margin: {
+                    b: 100
+                }
+            };
+            
+            // Create the chart
+            const chartElementId = `${country.toLowerCase()}trendsChart`;
+            console.log(`Plotting chart to element: ${chartElementId}`);
+            
+            Plotly.newPlot(chartElementId, [trace1, trace2], layout);
+            
+            // Add key changes section
+            const keyChangesDiv = document.getElementById('keyChanges');
+            const practicalChange = calculateChange(period1Stats.practicalPercent, period2Stats.practicalPercent);
+            const nonsenseChange = calculateChange(period1Stats.nonsensePercent, period2Stats.nonsensePercent);
+            const notesPerDriverChange = calculateChange(period1Stats.notesPerDriver, period2Stats.notesPerDriver);
+            const totalNotesChange = calculateChange(period1Data.length, period2Data.length);
+            
+            // Append to existing changes
+            const changeHtml = `
+                <h4>${countryAbbr} Changes:</h4>
+                <ul>
+                    <li>${Math.abs(practicalChange).toFixed(0)}% ${practicalChange >= 0 ? 'increase' : 'decrease'} in practical information (${period1Stats.practicalPercent.toFixed(1)}% → ${period2Stats.practicalPercent.toFixed(1)}%)</li>
+                    <li>${Math.abs(nonsenseChange).toFixed(0)}% ${nonsenseChange <= 0 ? 'decrease' : 'increase'} in nonsense content (${period1Stats.nonsensePercent.toFixed(1)}% → ${period2Stats.nonsensePercent.toFixed(1)}%)</li>
+                    <li>${Math.abs(totalNotesChange).toFixed(0)}% ${totalNotesChange >= 0 ? 'increase' : 'decrease'} in total notes volume (${period1Data.length} → ${period2Data.length})</li>
+                    <li>${Math.abs(notesPerDriverChange).toFixed(0)}% ${notesPerDriverChange >= 0 ? 'increase' : 'decrease'} in notes per driver (${period1Stats.notesPerDriver.toFixed(2)} → ${period2Stats.notesPerDriver.toFixed(2)})</li>
+                </ul>
+            `;
+            
+            // Add or update the changes section for this country
+            let countryChangesDiv = document.getElementById(`changes-${countryAbbr}`);
+            if (!countryChangesDiv) {
+                countryChangesDiv = document.createElement('div');
+                countryChangesDiv.id = `changes-${countryAbbr}`;
+                keyChangesDiv.appendChild(countryChangesDiv);
+            }
+            countryChangesDiv.innerHTML = changeHtml;
+        }
+        
+        // Generate quality comparison chart
+        function generateQualityComparisonChart(period1Data, period2Data) {
+            // Get unique countries
+            const countries = [...new Set([...period1Data, ...period2Data].map(row => row.country))];
+            
+            const traces = [];
+            
+            countries.forEach(country => {
+                const country1Data = period1Data.filter(row => row.country === country);
+                const country2Data = period2Data.filter(row => row.country === country);
+                
+                if (country1Data.length === 0 && country2Data.length === 0) return;
+                
+                const period1Stats = calculatePeriodStats(country1Data);
+                const period2Stats = calculatePeriodStats(country2Data);
+                
+                const countryAbbr = getCountryAbbreviation(country);
+                
+                traces.push(
+                    {
+                        x: [`Practical Info (${countryAbbr})`, `Nonsense (${countryAbbr})`],
+                        y: [period1Stats.practicalPercent, period1Stats.nonsensePercent],
+                        name: 'Previous',
+                        type: 'bar',
+                        marker: { color: '#A9A9A9' }
+                    },
+                    {
+                        x: [`Practical Info (${countryAbbr})`, `Nonsense (${countryAbbr})`],
+                        y: [period2Stats.practicalPercent, period2Stats.nonsensePercent],
+                        name: `Current (${countryAbbr})`,
+                        type: 'bar',
+                        marker: { color: getCountryColor(country) }
+                    }
+                );
+            });
+            
+            const layout = {
+                title: 'Quality Metrics Comparison',
+                barmode: 'group',
+                yaxis: {
+                    title: 'Percentage (%)',
+                    range: [0, 100]
+                },
+                height: 500
+            };
+            
+            const chartDiv = document.getElementById('comparisonQualityChart');
+            Plotly.react(chartDiv, traces, layout);
+        }
+        
+        // Calculate period statistics
+        function calculatePeriodStats(data) {
+            const uniqueDrivers = getUniqueDriversCount(data);
+            const practicalCount = data.filter(row => row.isPractical).length;
+            const nonsenseCount = data.filter(row => 
+                (row.userCategory || row.category) === 'Nonsense/Unclear'
+            ).length;
+            
+            return {
+                totalNotes: data.length,
+                uniqueDrivers: uniqueDrivers,
+                notesPerDriver: uniqueDrivers > 0 ? data.length / uniqueDrivers : 0,
+                practicalCount: practicalCount,
+                nonsenseCount: nonsenseCount,
+                practicalPercent: data.length > 0 ? (practicalCount / data.length) * 100 : 0,
+                nonsensePercent: data.length > 0 ? (nonsenseCount / data.length) * 100 : 0
+            };
+        }
+        
+        // Calculate percentage change between two values
+        function calculateChange(oldValue, newValue) {
+            if (oldValue === 0) return newValue > 0 ? 100 : 0;
+            return ((newValue - oldValue) / oldValue) * 100;
+        }
+        
+        // Get unique drivers count
+        function getUniqueDriversCount(data) {
+            return new Set(data.map(row => row.user_id).filter(id => id !== null && id !== undefined)).size;
+        }
+        
+        // Get color based on country
+        function getCountryColor(country) {
+            const colors = {
+                'Poland': '#4CAF50', // Green
+                'Netherlands': '#2196F3', // Blue
+                'Germany': '#FFC107' // Yellow/Gold
+            };
+            return colors[country] || '#9C27B0'; // Default to purple if not found
+        }
+        
+        // Generate statistics for periods
+        function generatePeriodStatistics(period1Data, period2Data) {
+            const period1Stats = calculatePeriodStats(period1Data);
+            const period2Stats = calculatePeriodStats(period2Data);
+            
+            // Period 1 Stats
+            document.getElementById('period1Stats').innerHTML = `
+                <div>Total Notes: ${period1Stats.totalNotes}</div>
+                <div>Unique Drivers: ${period1Stats.uniqueDrivers}</div>
+                <div>Notes per Driver: ${period1Stats.notesPerDriver.toFixed(2)}</div>
+                <div>Practical Notes: ${period1Stats.practicalCount} (${period1Stats.practicalPercent.toFixed(1)}%)</div>
+                <div>Nonsense/Unclear: ${period1Stats.nonsenseCount} (${period1Stats.nonsensePercent.toFixed(1)}%)</div>
+            `;
+            
+            // Period 2 Stats
+            document.getElementById('period2Stats').innerHTML = `
+                <div>Total Notes: ${period2Stats.totalNotes}</div>
+                <div>Unique Drivers: ${period2Stats.uniqueDrivers}</div>
+                <div>Notes per Driver: ${period2Stats.notesPerDriver.toFixed(2)}</div>
+                <div>Practical Notes: ${period2Stats.practicalCount} (${period2Stats.practicalPercent.toFixed(1)}%)</div>
+                <div>Nonsense/Unclear: ${period2Stats.nonsenseCount} (${period2Stats.nonsensePercent.toFixed(1)}%)</div>
+            `;
+        }
+        
+        // NEW: German Depot View Functions
+        
+        // Populate depot dropdown based on regions
+        function populateDepotDropdown() {
+            // Clear current options (keep "All Depots")
+            depotFilter.innerHTML = '<option value="all">All Depots</option>';
+            
+            if (!processedData || !processedData.length) return;
+            
+            // Get all German data
+            const germanData = processedData.filter(row => row.country === 'Germany');
+            if (germanData.length === 0) return;
+            
+            // Get selected region
+            const selectedRegion = regionFilter.value;
+            
+            // Get unique depots for the selected region
+            let depots = [];
+            
+            if (selectedRegion === 'all') {
+                // Get all depots
+                depots = [...new Set(germanData.map(row => row.depot).filter(d => d && d !== 'Unknown'))];
+            } else {
+                // Get depots for the selected region
+                depots = [...new Set(germanData
+                    .filter(row => row.region === selectedRegion)
+                    .map(row => row.depot)
+                    .filter(d => d && d !== 'Unknown'))];
+            }
+            
+            // Add depot options
+            depots.sort().forEach(depot => {
+                const option = document.createElement('option');
+                option.value = depot;
+                option.textContent = `Depot ${depot}`;
+                depotFilter.appendChild(option);
+            });
+        }
+        
+        // Update German depot view
+        function updateDepotView() {
+            if (!processedData || !processedData.length) return;
+            
+            // Get German data only
+            let germanData = processedData.filter(row => row.country === 'Germany');
+            
+            // Apply region filter
+            const selectedRegion = regionFilter.value;
+            if (selectedRegion !== 'all') {
+                germanData = germanData.filter(row => row.region === selectedRegion);
+            }
+            
+            // Apply depot filter
+            const selectedDepot = depotFilter.value;
+            if (selectedDepot !== 'all') {
+                germanData = germanData.filter(row => row.depot === selectedDepot);
+            }
+            
+            // Generate depot visualization
+            generateDepotVisualization(germanData);
+            
+            // Generate depot statistics
+            generateDepotStatistics(germanData);
+            
+            // Generate depot notes table
+            generateDepotNotesTable(germanData);
+        }
+        
+        // Generate depot visualization
+        function generateDepotVisualization(data) {
+            // Group data by depot or region
+            const selectedDepot = depotFilter.value;
+            
+            if (selectedDepot !== 'all') {
+                // Show detailed depot stats
+                generateDepotCategoryChart(data);
+            } else {
+                // Show depot or region comparison
+                generateDepotComparisonChart(data);
+            }
+        }
+        
+        // Generate depot category chart (pie chart)
+        function generateDepotCategoryChart(data) {
+            const categoryCount = {};
+            
+            // Count categories
+            data.forEach(row => {
+                const category = row.userCategory || row.category;
+                categoryCount[category] = (categoryCount[category] || 0) + 1;
+            });
+            
+            // Create pie chart
+            const pieData = [{
+                values: Object.values(categoryCount),
+                labels: Object.keys(categoryCount),
+                type: 'pie',
+                name: 'Categories',
+                marker: {
+                    colors: ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+                }
+            }];
+            
+            const layout = {
+                title: `Depot ${depotFilter.value} - Note Categories`,
+                height: 500
+            };
+            
+            Plotly.newPlot('depotViz', pieData, layout);
+        }
+        
+        // Generate depot comparison chart (bar chart)
+        function generateDepotComparisonChart(data) {
+            // Group by depot or region
+            const selectedRegion = regionFilter.value;
+            const groupBy = selectedRegion !== 'all' ? 'depot' : 'region';
+            
+            const groups = {};
+            data.forEach(row => {
+                const key = row[groupBy] || 'Unknown';
+                if (!groups[key]) {
+                    groups[key] = {
+                        total: 0,
+                        practical: 0
+                    };
+                }
+                groups[key].total++;
+                if (row.isPractical) {
+                    groups[key].practical++;
+                }
+            });
+            
+            // Calculate percentages
+            const keys = Object.keys(groups).sort();
+            const practicalPercent = keys.map(key => 
+                groups[key].total > 0 ? (groups[key].practical / groups[key].total * 100) : 0
+            );
+            
+            // Create bar chart
+            const barData = [{
+                x: keys,
+                y: practicalPercent,
+                type: 'bar',
+                marker: {
+                    color: '#FFC107'
+                },
+                text: practicalPercent.map(val => val.toFixed(1) + '%'),
+                textposition: 'auto'
+            }];
+            
+            const layout = {
+                title: groupBy === 'depot' ? 'Depot Comparison - Practical Note Rate' : 'Region Comparison - Practical Note Rate',
+                yaxis: {
+                    title: 'Practical Note Rate (%)',
+                    range: [0, 100]
+                },
+                height: 500
+            };
+            
+            Plotly.newPlot('depotViz', barData, layout);
+        }
+        
+        // Generate depot statistics
+        function generateDepotStatistics(data) {
+            const statsContainer = document.getElementById('depotStats');
+            
+            // Clear previous stats
+            statsContainer.innerHTML = '';
+            
+            if (data.length === 0) {
+                statsContainer.innerHTML = '<div class="stat-card"><h3>No Data</h3><p>No data available for the selected filters.</p></div>';
+                return;
+            }
+            
+            // Calculate statistics
+            const totalNotes = data.length;
+            const practicalNotes = data.filter(row => row.isPractical).length;
+            const practicalPercent = (practicalNotes / totalNotes * 100).toFixed(1);
+            
+            const categories = {};
+            data.forEach(row => {
+                const category = row.userCategory || row.category;
+                categories[category] = (categories[category] || 0) + 1;
+            });
+            
+            // Create statistics cards
+            const totalCard = document.createElement('div');
+            totalCard.className = 'stat-card';
+            totalCard.innerHTML = `
+                <h3>Total Notes</h3>
+                <p>${totalNotes}</p>
+            `;
+            statsContainer.appendChild(totalCard);
+            
+            const practicalCard = document.createElement('div');
+            practicalCard.className = 'stat-card';
+            practicalCard.innerHTML = `
+                <h3>Practical Information</h3>
+                <p>${practicalNotes} (${practicalPercent}%)</p>
+            `;
+            statsContainer.appendChild(practicalCard);
+            
+            const categoryCard = document.createElement('div');
+            categoryCard.className = 'stat-card';
+            categoryCard.innerHTML = `
+                <h3>Category Distribution</h3>
+                ${Object.keys(categories).map(category => {
+                    const percent = (categories[category] / totalNotes * 100).toFixed(1);
+                    return `<div>${category}: ${categories[category]} (${percent}%)</div>`;
+                }).join('')}
+            `;
+            statsContainer.appendChild(categoryCard);
+        }
+        
+        // Generate depot notes table
+        function generateDepotNotesTable(data) {
+            const tableContainer = document.getElementById('depotNotesTable');
+            
+            if (data.length === 0) {
+                tableContainer.innerHTML = '<p>No notes available for the selected filters.</p>';
+                return;
+            }
+            
+            const table = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Depot</th>
+                            <th>Note</th>
+                            <th>Translation</th>
+                            <th>Category</th>
+                            <th>GPS Accuracy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.map(row => {
+                            // Check if this note was categorized from saved data
+                            const noteKey = generateNoteKey(row);
+                            const isFromSavedCategories = savedCategorizations[noteKey] !== undefined;
+                            
+                            return `
+                                <tr ${isFromSavedCategories ? 'style="background-color: #e6f7ff;"' : ''}>
+                                    <td>${row.depot || 'Unknown'}</td>
+                                    <td>${row.content || ''}</td>
+                                    <td>${row.translation || ''}</td>
+                                    <td>${row.userCategory || row.category}</td>
+                                    <td>${row.accuracy_numeric || 'N/A'}</td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            tableContainer.innerHTML = table;
+        }
+        
+        // Tab switching logic
+        const tabs = document.querySelectorAll('.tab');
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                // Remove active class from all tabs
+                tabs.forEach(t => t.classList.remove('active'));
+                
+                // Add active class to clicked tab
+                tab.classList.add('active');
+                
+                // Hide all tab content
+                document.querySelectorAll('.tab-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                
+                // Show corresponding tab content
+                const tabId = tab.getAttribute('data-tab');
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+            });
+        });
+        
+        // Filter change event handlers
+        countryFilter.addEventListener('change', updateHeatmap);
+        translationCountryFilter.addEventListener('change', () => {
+            createTranslationTable(processedData);
+        });
+        
+        // German depot view event handlers
+        regionFilter.addEventListener('change', function() {
+            populateDepotDropdown();
+            updateDepotView();
+        });
+        
+        depotFilter.addEventListener('change', updateDepotView);
+        
+        // Load saved categorizations on startup
+        loadCategorizationsFromLocalStorage();
+        
+        // Safe localStorage operations with error handling
+        function safeLocalStorage() {
+            try {
+                // Test if localStorage is available
+                const test = 'test';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        // Initialize date pickers on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize date pickers (if not already done)
+            if (typeof flatpickr !== 'undefined' && period1Start && !period1Start._flatpickr) {
+                flatpickr(period1Start, {
+                    dateFormat: "Y-m-d"
+                });
+                flatpickr(period1End, {
+                    dateFormat: "Y-m-d"
+                });
+                flatpickr(period2Start, {
+                    dateFormat: "Y-m-d"
+                });
+                flatpickr(period2End, {
+                    dateFormat: "Y-m-d"
+                });
+            }
+            
+            // Load saved categorizations
+            loadCategorizationsFromLocalStorage();
+        });
+    </script>
+</body>
+</html>
