@@ -1,0 +1,1424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>German Depot Analyzer</title>
+    <!-- Load Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Load PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .upload-section {
+            background-color: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .upload-section h2 {
+            margin-top: 0;
+        }
+        .file-input {
+            margin: 15px 0;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        select, input {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .visualization {
+            width: 100%;
+            height: 600px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background-color: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            min-width: 200px;
+            flex: 1;
+        }
+        .stat-card h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        #status {
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .info {
+            background-color: #cce7ff;
+            color: #004085;
+        }
+        .loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .loading-spinner {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 2s linear infinite;
+            margin: 0 auto 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .table-container {
+            overflow-x: auto;
+            margin: 20px 0;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background-color: white;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+            font-weight: bold;
+            position: sticky;
+            top: 0;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .category-select {
+            width: 100%;
+            min-width: 180px;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .section-header {
+            background-color: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0 10px 0;
+            border-left: 4px solid #2196F3;
+        }
+        .section-header h2 {
+            margin: 0;
+            color: #1976D2;
+        }
+        .no-data {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+        }
+        .add-category-option {
+            font-style: italic;
+            color: #007bff;
+        }
+        .checkbox-container {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 5px;
+            background-color: white;
+        }
+        .checkbox-item {
+            display: block;
+            padding: 4px 8px;
+            margin: 2px 0;
+            cursor: pointer;
+            border-radius: 3px;
+        }
+        .checkbox-item:hover {
+            background-color: #f5f5f5;
+        }
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 8px;
+        }
+        .uncategorized-row {
+            background-color: #fff3cd !important;
+            border-left: 4px solid #ffc107;
+        }
+        .uncategorized-row:hover {
+            background-color: #ffeaa7 !important;
+        }
+        .export-info {
+            background-color: #e8f5e8;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-size: 14px;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>German Depot Analyzer</h1>
+        
+        <div class="upload-section">
+            <h2>Upload Driver Notes CSV</h2>
+            <p>Upload a CSV file with driver notes data. The file should include columns: 'Lat', 'Lng', 'Formatted Address', 'Content', etc.</p>
+            
+            <div class="file-input">
+                <label>Driver Notes CSV:</label>
+                <input type="file" id="csvFile" accept=".csv" />
+            </div>
+            
+            <div class="file-input">
+                <label>Depot PLZ Mapping CSV:</label>
+                <input type="file" id="plzFile" accept=".csv" />
+            </div>
+            
+            <button id="generateBtn" disabled>Load Data</button>
+            
+            <div class="file-input">
+                <label>Import Previous Categorizations (optional):</label>
+                <input type="file" id="categorizationFile" accept=".json" />
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    Upload a previously exported categorization file to automatically categorize matching notes
+                </small>
+            </div>
+            
+            <div style="margin-top: 15px;">
+                <button id="exportBtn" disabled style="background-color: #2196F3;">Export Categorizations</button>
+                <small style="color: #666; display: block; margin-top: 5px;">
+                    Export your categorizations to share with others or save for later
+                </small>
+            </div>
+            
+            <div id="status"></div>
+            
+            <div id="loading" class="loading">
+                <div class="loading-spinner"></div>
+                <p>Processing data, please wait...</p>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label>Regions:</label>
+                <div class="checkbox-container" id="regionCheckboxes">
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="all" checked> All Regions
+                    </label>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <label>Depots:</label>
+                <div class="checkbox-container" id="depotCheckboxes">
+                    <label class="checkbox-item">
+                        <input type="checkbox" value="all" checked> All Depots
+                    </label>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <label class="checkbox-item" style="margin-top: 10px;">
+                    <input type="checkbox" id="excludeTestNotes"> Exclude Test Notes
+                </label>
+            </div>
+        </div>
+        
+        <div class="section-header">
+            <h2 onclick="toggleNotesTable()" style="cursor: pointer;">
+                German Driver Notes 
+                <span id="notesToggle">▼</span>
+                <span id="notesCount" style="font-weight: normal; font-size: 0.8em; color: #666;"></span>
+            </h2>
+        </div>
+        
+        <div id="notesTable" class="table-container">
+            <div class="no-data">Please upload a CSV file to view German driver notes.</div>
+        </div>
+        
+        <div class="section-header">
+            <h2>Statistics</h2>
+        </div>
+        
+        <div class="stats" id="depotStats">
+            <div class="stat-card">
+                <h3>Total Notes</h3>
+                <p id="totalNotes">-</p>
+            </div>
+            <div class="stat-card">
+                <h3>Category Distribution</h3>
+                <div id="categoryDistribution">-</div>
+            </div>
+            <div class="stat-card">
+                <h3>Quality Metrics</h3>
+                <div id="qualityMetrics">-</div>
+            </div>
+        </div>
+        
+        <div class="section-header">
+            <h2>Visualization</h2>
+        </div>
+        
+        <div id="depotViz" class="visualization"></div>
+    </div>
+    
+    <script>
+        // Correct PLZ to Depot mapping from CSV file
+        let correctPLZToDepotMapping = null;
+        
+        // Initialize the mapping from uploaded data
+        async function initializePLZMapping() {
+            if (correctPLZToDepotMapping) return; // Already loaded
+            
+            try {
+                // This will be populated when depot mapping file is loaded
+                // For now, using the old prefix-based system as fallback
+                correctPLZToDepotMapping = {};
+                console.log('Using fallback PLZ mapping - upload depot mapping file for accurate results');
+            } catch (error) {
+                console.error('Error initializing PLZ mapping:', error);
+                correctPLZToDepotMapping = {};
+            }
+        }
+        
+        // Regions in Germany
+        const regions = {
+            'Region Ost': ['10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '21', '22', '33', '36', '37', '44'],
+            'Region Nord': ['20', '23', '25', '26', '27', '28', '29', '30', '35', '45', '48'],
+            'Region West': ['40', '42', '43', '46', '49', '50', '56'],
+            'Region Süd': ['41', '47', '61', '65', '67', '72', '79', '80', '81', '82', '83', '84', '85', '86', '89'],
+            'Region Süd-West': ['70', '71', '73', '74', '75', '76', '77', '78'],
+            'Region Center': ['54', '60', '62', '63', '64', '66', '68', '69', '87', '88']
+        };
+        
+        // Default categories
+        const defaultCategories = [
+            'Gate/Access Code',
+            'Delivery Instructions', 
+            'Address',
+            'Company Name',
+            'Status Update',
+            'Test',
+            'Nonsense/Unclear'
+        ];
+        
+        // Get all categories (default + custom) - fallback to in-memory storage
+        let customCategories = [];
+        
+        function getAllCategories() {
+            return [...defaultCategories, ...customCategories];
+        }
+        
+        // Get custom categories from in-memory storage
+        function getCustomCategories() {
+            return customCategories;
+        }
+        
+        // Save custom categories to in-memory storage
+        function saveCustomCategories(categories) {
+            customCategories = categories;
+        }
+        
+        // Add a new custom category
+        function addCustomCategory(categoryName) {
+            const allCategories = getAllCategories();
+            
+            // Check if category already exists (case insensitive)
+            const exists = allCategories.some(cat => 
+                cat.toLowerCase() === categoryName.toLowerCase()
+            );
+            
+            if (!exists && categoryName.trim()) {
+                customCategories.push(categoryName.trim());
+                return true;
+            }
+            return false;
+        }
+        
+        // Generate unique key for a note (address + content)
+        function generateNoteKey(address, content) {
+            // Safely handle null/undefined values and ensure we have strings
+            const normalizedAddress = (address && typeof address === 'string' ? address : String(address || '')).trim().toLowerCase();
+            const normalizedContent = (content && typeof content === 'string' ? content : String(content || '')).trim().toLowerCase();
+            return `${normalizedAddress}|||${normalizedContent}`;
+        }
+        
+        // In-memory storage for categorizations (fallback)
+        let noteCategorizations = {};
+        let importedCategorizations = 0;
+        let newCategorizationsCount = 0;
+        
+        // Get saved note categorizations from in-memory storage
+        function getSavedCategorizations() {
+            return noteCategorizations;
+        }
+        
+        // Save note categorization to in-memory storage
+        function saveNoteCategorization(address, content, category) {
+            const key = generateNoteKey(address, content);
+            const wasNew = !noteCategorizations[key];
+            noteCategorizations[key] = {
+                category: category,
+                lastUpdated: new Date().toISOString(),
+                address: address, // Store original for reference
+                content: content,  // Store original for reference
+                isNew: wasNew && !importedCategorizations // Mark as new if not from import
+            };
+            
+            if (wasNew && importedCategorizations === 0) {
+                newCategorizationsCount++;
+            }
+        }
+        
+        // Get saved category for a note
+        function getSavedCategory(address, content) {
+            const categorizations = getSavedCategorizations();
+            const key = generateNoteKey(address, content);
+            return categorizations[key] ? categorizations[key].category : null;
+        }
+        
+        // Check if a note was categorized from import vs manually
+        function isNoteCategorizedFromImport(address, content) {
+            const categorizations = getSavedCategorizations();
+            const key = generateNoteKey(address, content);
+            const categorization = categorizations[key];
+            return categorization && !categorization.isNew;
+        }
+        
+        // Import categorizations from JSON file
+        function importCategorizations(jsonData) {
+            try {
+                const imported = JSON.parse(jsonData);
+                
+                // Validate the structure
+                if (!imported.categorizations || !imported.customCategories) {
+                    throw new Error('Invalid categorization file format');
+                }
+                
+                // Import custom categories
+                customCategories = [...new Set([...customCategories, ...imported.customCategories])];
+                
+                // Import categorizations
+                let importCount = 0;
+                Object.keys(imported.categorizations).forEach(key => {
+                    const cat = imported.categorizations[key];
+                    noteCategorizations[key] = {
+                        ...cat,
+                        isNew: false // Mark as imported
+                    };
+                    importCount++;
+                });
+                
+                importedCategorizations = importCount;
+                return importCount;
+                
+            } catch (error) {
+                throw new Error('Failed to parse categorization file: ' + error.message);
+            }
+        }
+        
+        // Export categorizations to JSON
+        function exportCategorizations() {
+            const exportData = {
+                exportDate: new Date().toISOString(),
+                totalCategorizations: Object.keys(noteCategorizations).length,
+                newCategorizations: newCategorizationsCount,
+                customCategories: customCategories,
+                categorizations: noteCategorizations,
+                version: "1.0"
+            };
+            
+            const jsonString = JSON.stringify(exportData, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `categorizations_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showStatus(`Exported ${Object.keys(noteCategorizations).length} categorizations successfully!`, 'success');
+        }
+        
+        // Apply saved categorizations to new data
+        function applySavedCategorizations(data) {
+            let autoCategorizationCount = 0;
+            const categorizations = getSavedCategorizations();
+            
+            data.forEach(row => {
+                const savedCategory = getSavedCategory(row.formatted_address, row.content);
+                if (savedCategory) {
+                    row.category = savedCategory;
+                    autoCategorizationCount++;
+                }
+            });
+            
+            return autoCategorizationCount;
+        }
+        
+        let csvData = null;
+        let processedData = null;
+        let germanData = null;
+        
+        // Get selected values from checkboxes
+        function getSelectedRegions() {
+            const checkboxes = document.querySelectorAll('#regionCheckboxes input[type="checkbox"]:checked');
+            const selected = Array.from(checkboxes).map(cb => cb.value);
+            return selected.includes('all') ? ['all'] : selected;
+        }
+        
+        function getSelectedDepots() {
+            const checkboxes = document.querySelectorAll('#depotCheckboxes input[type="checkbox"]:checked');
+            const selected = Array.from(checkboxes).map(cb => cb.value);
+            return selected.includes('all') ? ['all'] : selected;
+        }
+        
+        // Populate region checkboxes - MISSING FUNCTION ADDED
+        function populateRegionCheckboxes() {
+            const container = document.getElementById('regionCheckboxes');
+            const allCheckbox = container.querySelector('input[value="all"]').parentElement;
+            
+            // Clear existing checkboxes except "All"
+            container.innerHTML = '';
+            container.appendChild(allCheckbox);
+            
+            if (!germanData || !germanData.length) return;
+            
+            const availableRegions = [...new Set(germanData.map(row => row.region).filter(r => r && r !== 'Unknown Region'))];
+            
+            availableRegions.sort().forEach(region => {
+                const label = document.createElement('label');
+                label.className = 'checkbox-item';
+                label.innerHTML = `<input type="checkbox" value="${region}"> ${region}`;
+                container.appendChild(label);
+            });
+        }
+        
+        // Handle region checkbox changes using event delegation
+        function handleRegionChange(event) {
+            if (!event.target.matches('#regionCheckboxes input[type="checkbox"]')) return;
+            
+            const allCheckbox = document.querySelector('#regionCheckboxes input[value="all"]');
+            const otherCheckboxes = document.querySelectorAll('#regionCheckboxes input[type="checkbox"]:not([value="all"])');
+            
+            if (event.target.value === 'all') {
+                if (event.target.checked) {
+                    // If "All" is checked, uncheck others
+                    otherCheckboxes.forEach(cb => cb.checked = false);
+                }
+            } else {
+                // If any specific region is checked, uncheck "All"
+                if (event.target.checked) {
+                    allCheckbox.checked = false;
+                    // When selecting specific regions, automatically select "All Depots"
+                    const allDepotsCheckbox = document.querySelector('#depotCheckboxes input[value="all"]');
+                    const otherDepotCheckboxes = document.querySelectorAll('#depotCheckboxes input[type="checkbox"]:not([value="all"])');
+                    allDepotsCheckbox.checked = true;
+                    otherDepotCheckboxes.forEach(cb => cb.checked = false);
+                } else {
+                    // If no regions are selected, check "All"
+                    const anyChecked = Array.from(otherCheckboxes).some(cb => cb.checked);
+                    if (!anyChecked) {
+                        allCheckbox.checked = true;
+                    }
+                }
+            }
+            
+            populateDepotCheckboxes();
+            updateNotesTable();
+            updateStatistics();
+            updateVisualization();
+        }
+        
+        // Handle depot checkbox changes using event delegation
+        function handleDepotChange(event) {
+            if (!event.target.matches('#depotCheckboxes input[type="checkbox"]')) return;
+            
+            const allCheckbox = document.querySelector('#depotCheckboxes input[value="all"]');
+            const otherCheckboxes = document.querySelectorAll('#depotCheckboxes input[type="checkbox"]:not([value="all"])');
+            
+            if (event.target.value === 'all') {
+                if (event.target.checked) {
+                    // If "All" is checked, uncheck others
+                    otherCheckboxes.forEach(cb => cb.checked = false);
+                }
+            } else {
+                // If any specific depot is checked, uncheck "All"
+                if (event.target.checked) {
+                    allCheckbox.checked = false;
+                } else {
+                    // If no depots are selected, check "All"
+                    const anyChecked = Array.from(otherCheckboxes).some(cb => cb.checked);
+                    if (!anyChecked) {
+                        allCheckbox.checked = true;
+                    }
+                }
+            }
+            
+            updateNotesTable();
+            updateStatistics();
+            updateVisualization();
+        }
+        
+        // Toggle notes table visibility
+        function toggleNotesTable() {
+            const notesTable = document.getElementById('notesTable');
+            const toggle = document.getElementById('notesToggle');
+            
+            if (notesTable.style.display === 'none') {
+                notesTable.style.display = 'block';
+                toggle.textContent = '▼';
+            } else {
+                notesTable.style.display = 'none';
+                toggle.textContent = '▶';
+            }
+        }
+        
+        // DOM elements
+        const csvFileInput = document.getElementById('csvFile');
+        const plzFileInput = document.getElementById('plzFile');
+        const categorizationFileInput = document.getElementById('categorizationFile');
+        const generateBtn = document.getElementById('generateBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const statusDiv = document.getElementById('status');
+        const loadingDiv = document.getElementById('loading');
+        
+        // Enable button when CSV file is selected
+        csvFileInput.addEventListener('change', function() {
+            generateBtn.disabled = !csvFileInput.files.length;
+            statusDiv.innerHTML = '';
+            statusDiv.className = '';
+        });
+        
+        // Handle categorization file upload
+        categorizationFileInput.addEventListener('change', async function() {
+            if (!categorizationFileInput.files.length) return;
+            
+            const file = categorizationFileInput.files[0];
+            showStatus('Loading categorizations...', 'info');
+            
+            try {
+                const fileContent = await file.text();
+                const importCount = importCategorizations(fileContent);
+                showStatus(`Successfully imported ${importCount} categorizations!`, 'success');
+                
+                // If data is already loaded, reapply categorizations
+                if (germanData && germanData.length > 0) {
+                    const autoCategorizationCount = applySavedCategorizations(germanData);
+                    updateNotesTable();
+                    updateStatistics();
+                    updateVisualization();
+                    exportBtn.disabled = false;
+                    
+                    if (autoCategorizationCount > 0) {
+                        showStatus(`Imported ${importCount} categorizations and applied ${autoCategorizationCount} to current data!`, 'success');
+                    }
+                }
+            } catch (error) {
+                console.error('Error importing categorizations:', error);
+                showStatus('Error importing categorizations: ' + error.message, 'error');
+            }
+        });
+        
+        // Handle export button click
+        exportBtn.addEventListener('click', function() {
+            if (Object.keys(noteCategorizations).length === 0) {
+                showStatus('No categorizations to export.', 'error');
+                return;
+            }
+            exportCategorizations();
+        });
+        
+        // Handle PLZ file upload (optional, doesn't affect button state)
+        plzFileInput.addEventListener('change', async function() {
+            if (!plzFileInput.files.length) return;
+            
+            const file = plzFileInput.files[0];
+            showStatus('Loading depot mapping...', 'info');
+            
+            try {
+                await loadPLZMapping(file);
+                showStatus('Depot mapping loaded successfully!', 'success');
+                // Keep button enabled if CSV is also loaded
+                generateBtn.disabled = !csvFileInput.files.length;
+            } catch (error) {
+                console.error('Error loading PLZ mapping:', error);
+                showStatus('Error loading depot mapping: ' + error.message, 'error');
+                // Keep button enabled if CSV is loaded
+                generateBtn.disabled = !csvFileInput.files.length;
+            }
+        });
+        
+        // Load PLZ mapping from CSV file
+        async function loadPLZMapping(file) {
+            return new Promise((resolve, reject) => {
+                Papa.parse(file, {
+                    header: true,
+                    dynamicTyping: true,
+                    skipEmptyLines: true,
+                    complete: function(results) {
+                        try {
+                            if (results.errors.length > 0) {
+                                console.warn('CSV parsing warnings:', results.errors);
+                            }
+                            
+                            const csvData = results.data;
+                            correctPLZToDepotMapping = {};
+                            
+                            csvData.forEach(row => {
+                                const standort = row.STANDORT || row.standort; // Handle case variations
+                                const plz = row.PLZ || row.plz;
+                                
+                                if (standort && plz) {
+                                    // Extract depot number from standort (remove "DE " and trailing zero)
+                                    const depotMatch = standort.toString().match(/DE\s*(\d+)/);
+                                    if (depotMatch) {
+                                        let depotNumber = depotMatch[1];
+                                        // Remove trailing zero if it's a 3-digit number ending in 0
+                                        if (depotNumber.length === 3 && depotNumber.endsWith('0')) {
+                                            depotNumber = depotNumber.substring(0, 2);
+                                        }
+                                        correctPLZToDepotMapping[plz.toString()] = depotNumber;
+                                    }
+                                }
+                            });
+                            
+                            console.log(`Loaded ${Object.keys(correctPLZToDepotMapping).length} PLZ mappings from CSV`);
+                            resolve();
+                        } catch (error) {
+                            reject(error);
+                        }
+                    },
+                    error: function(error) {
+                        reject(new Error('Failed to parse CSV: ' + error));
+                    }
+                });
+            });
+        }
+        
+        // Handle generate button click
+        generateBtn.addEventListener('click', function() {
+            if (!csvFileInput.files.length) {
+                showStatus('Please select a CSV file.', 'error');
+                return;
+            }
+            
+            const file = csvFileInput.files[0];
+            loadingDiv.style.display = 'block';
+            statusDiv.innerHTML = '';
+            
+            // Parse CSV
+            Papa.parse(file, {
+                header: true,
+                dynamicTyping: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    if (results.errors.length > 0) {
+                        console.error('CSV parsing errors:', results.errors);
+                    }
+                    
+                    csvData = results.data;
+                    processData();
+                    loadingDiv.style.display = 'none';
+                },
+                error: function(error) {
+                    console.error('Fatal parsing error:', error);
+                    loadingDiv.style.display = 'none';
+                    showStatus(`Error parsing CSV: ${error}`, 'error');
+                }
+            });
+        });
+        
+        // Process the raw CSV data
+        function processData() {
+            if (!csvData || !csvData.length) {
+                showStatus('No data to process.', 'error');
+                return;
+            }
+            
+            // Initialize PLZ mapping
+            initializePLZMapping();
+            
+            // Map new column names to expected names
+            let validData = csvData.map(row => {
+                return {
+                    id: row.ID || row.id,
+                    na_id: row['NA ID'] || row.na_id,
+                    formatted_address: row['Formatted Address'] || row.formatted_address,
+                    lat: row.Lat || row.lat,
+                    lng: row.Lng || row.lng,
+                    accuracy_score: row['Accuracy Score'] || row.accuracy_score,
+                    tenant: row.Tenant || row.tenant,
+                    content: row.Content || row.content,
+                    user_id: row.user_id || 'unknown', // Handle missing user_id
+                    created_at: row.created_at || new Date().toISOString() // Handle missing created_at
+                };
+            });
+            
+            // Filter out rows without coordinates
+            validData = validData.filter(row => {
+                return row.lat !== null && row.lat !== undefined && 
+                       row.lng !== null && row.lng !== undefined &&
+                       !isNaN(row.lat) && !isNaN(row.lng);
+            });
+            
+            // Determine country and filter for Germany only
+            validData.forEach(row => {
+                row.country = detectCountry(row.lat, row.lng, row.formatted_address);
+            });
+            
+            // Filter for German data only
+            germanData = validData.filter(row => row.country === 'Germany');
+            
+            // Determine depot and region for German notes
+            germanData.forEach((row, index) => {
+                row.depot = getDepotFromAddress(row.formatted_address);
+                if (row.depot && row.depot !== "Unknown Depot") {
+                    row.region = getRegionFromDepot(row.depot);
+                } else if (row.depot === "Unknown Depot") {
+                    row.region = 'Unknown Region';
+                } else {
+                    row.depot = 'Unknown';
+                    row.region = 'Unknown Region';
+                }
+                row.category = 'Nonsense/Unclear'; // Default category
+                row.index = index; // For tracking
+            });
+            
+            // Apply saved categorizations to matching notes
+            const autoCategorizationCount = applySavedCategorizations(germanData);
+            
+            processedData = validData;
+            
+            if (germanData.length === 0) {
+                showStatus('No German addresses found in the data.', 'error');
+                return;
+            }
+            
+            let statusMessage = `Successfully processed ${germanData.length} German records.`;
+            if (autoCategorizationCount > 0) {
+                statusMessage += ` ${autoCategorizationCount} notes were automatically categorized based on previous categorizations.`;
+            }
+            
+            const uncategorizedCount = germanData.filter(row => row.category === 'Nonsense/Unclear').length;
+            if (uncategorizedCount > 0) {
+                statusMessage += ` ${uncategorizedCount} notes need manual categorization (highlighted in yellow).`;
+            }
+            
+            showStatus(statusMessage, 'success');
+            
+            // Enable export button since we now have data
+            exportBtn.disabled = false;
+            
+            populateRegionCheckboxes();
+            populateDepotCheckboxes();
+            updateNotesTable();
+            updateStatistics();
+            updateVisualization();
+        }
+        
+        // Detect country based on coordinates
+        function detectCountry(lat, lng, address) {
+            const lowerAddress = (address || '').toLowerCase();
+            
+            // First check for explicit country mentions in address
+            if (lowerAddress.includes('netherlands') || lowerAddress.includes('nederland')) {
+                return 'Netherlands';
+            }
+            if (lowerAddress.includes('poland') || lowerAddress.includes('polska')) {
+                return 'Poland';
+            }
+            if (lowerAddress.includes('germany') || lowerAddress.includes('deutschland')) {
+                return 'Germany';
+            }
+            
+            // Check for Polish indicators (postal codes, street types, city names)
+            const polishIndicators = [
+                /\d{2}-\d{3}/, // Polish postal code format XX-XXX
+                /ulica/i,      // Polish word for street
+                /aleja/i,      // Polish word for avenue  
+                /plac/i,       // Polish word for square
+                /myślibórz/i,  // Polish city names
+                /lubiszyn/i,
+                /chłopowo/i,
+                /szczecin/i,
+                /wrocław/i,
+                /kraków/i,
+                /gdańsk/i,
+                /poznań/i,
+                /łódź/i,
+                /warszawa/i
+            ];
+            
+            if (polishIndicators.some(indicator => indicator.test(address || ''))) {
+                return 'Poland';
+            }
+            
+            // Check for German postal codes (5 digits) and street indicators
+            const germanIndicators = [
+                /\b\d{5}\b/,   // German postal code format XXXXX (5 digits)
+                /straße/i,     // German word for street
+                /strasse/i,    // German word for street (without umlaut)
+                /platz/i,      // German word for square
+                /weg/i,        // German word for way
+                /gasse/i,      // German word for lane
+                /allee/i       // German word for avenue
+            ];
+            
+            const hasGermanIndicators = germanIndicators.some(indicator => indicator.test(address || ''));
+            
+            // Only use coordinates if no clear linguistic indicators are found
+            if (!hasGermanIndicators) {
+                // Check for Poland coordinates first (more specific)
+                if (lat >= 49.0 && lat <= 54.8 && lng >= 14.1 && lng <= 24.15) {
+                    return 'Poland';
+                }
+                
+                // Check for Netherlands coordinates
+                if (lat >= 50.7 && lat <= 53.6 && lng >= 3.3 && lng <= 7.2) {
+                    return 'Netherlands';
+                }
+                
+                // Then check Germany coordinates (broader check)
+                if (lat >= 47.2 && lat <= 55.0 && lng >= 6.0 && lng <= 15.0) {
+                    // Additional check: exclude areas that are clearly Netherlands
+                    if (lat >= 50.7 && lat <= 53.6 && lng >= 3.3 && lng < 6.0) {
+                        return 'Netherlands'; // Western Netherlands
+                    }
+                    return 'Germany';
+                }
+                
+                return 'Other';
+            }
+            
+            // If we have German indicators and coordinates support it
+            if (hasGermanIndicators && lat >= 47.2 && lat <= 55.0 && lng >= 6.0 && lng <= 15.0) {
+                return 'Germany';
+            }
+            
+            return 'Other';
+        }
+        
+        // Get depot from address (extract exact PLZ and lookup in mapping)
+        function getDepotFromAddress(address) {
+            if (!address) return null;
+            
+            // Extract 5-digit postal code using regex
+            const plzMatch = address.match(/\b(\d{5})\b/);
+            if (plzMatch && plzMatch[1]) {
+                const plz = plzMatch[1];
+                
+                // Use exact PLZ lookup if mapping is available
+                if (correctPLZToDepotMapping && correctPLZToDepotMapping[plz]) {
+                    return correctPLZToDepotMapping[plz];
+                }
+                
+                // If PLZ found but not in mapping, return "Unknown Depot"
+                return "Unknown Depot";
+            }
+            
+            return null;
+        }
+        
+        // Get region from depot ID
+        function getRegionFromDepot(depotId) {
+            for (const [region, depots] of Object.entries(regions)) {
+                if (depots.includes(depotId)) {
+                    return region;
+                }
+            }
+            return "Unknown Region";
+        }
+        
+        // Populate depot checkboxes based on selected regions
+        function populateDepotCheckboxes() {
+            const container = document.getElementById('depotCheckboxes');
+            const allCheckbox = container.querySelector('input[value="all"]').parentElement;
+            
+            // Clear existing checkboxes except "All"
+            container.innerHTML = '';
+            container.appendChild(allCheckbox);
+            
+            if (!germanData || !germanData.length) return;
+            
+            const selectedRegions = getSelectedRegions();
+            let depots = [];
+            
+            if (selectedRegions.includes('all')) {
+                depots = [...new Set(germanData.map(row => row.depot).filter(d => d && d !== 'Unknown' && d !== 'Unknown Depot'))];
+            } else {
+                depots = [...new Set(germanData
+                    .filter(row => selectedRegions.includes(row.region))
+                    .map(row => row.depot)
+                    .filter(d => d && d !== 'Unknown' && d !== 'Unknown Depot'))];
+            }
+            
+            depots.sort().forEach(depot => {
+                const label = document.createElement('label');
+                label.className = 'checkbox-item';
+                label.innerHTML = `<input type="checkbox" value="${depot}"> Depot ${depot}`;
+                container.appendChild(label);
+            });
+        }
+        
+        // Update notes table
+        function updateNotesTable() {
+            const filteredData = getFilteredData();
+            
+            // Update notes count in header
+            const uncategorizedCount = filteredData.filter(row => 
+                row.category === 'Nonsense/Unclear' && !isNoteCategorizedFromImport(row.formatted_address, row.content)
+            ).length;
+            
+            let headerText = `(${filteredData.length} notes`;
+            if (uncategorizedCount > 0) {
+                headerText += `, ${uncategorizedCount} uncategorized`;
+            }
+            headerText += ')';
+            
+            document.getElementById('notesCount').textContent = headerText;
+            
+            if (filteredData.length === 0) {
+                document.getElementById('notesTable').innerHTML = 
+                    '<div class="no-data">No notes match the selected filters.</div>';
+                return;
+            }
+            
+            const table = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Depot</th>
+                            <th>Region</th>
+                            <th>Note Content</th>
+                            <th>Category</th>
+                            <th>Address</th>
+                            <th>GPS Accuracy</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredData.map((row) => {
+                            const isUncategorized = row.category === 'Nonsense/Unclear' && !isNoteCategorizedFromImport(row.formatted_address, row.content);
+                            const rowClass = isUncategorized ? 'uncategorized-row' : '';
+                            return `
+                            <tr class="${rowClass}">
+                                <td>${row.depot || 'Unknown'}</td>
+                                <td>${row.region || 'Unknown'}</td>
+                                <td>${row.content || ''}</td>
+                                <td>
+                                    <select class="category-select" onchange="handleCategoryChange(${row.index}, this.value, this)">
+                                        ${getAllCategories().map(cat => 
+                                            `<option value="${cat}" ${row.category === cat ? 'selected' : ''}>${cat}</option>`
+                                        ).join('')}
+                                        <option value="__ADD_NEW__" class="add-category-option">+ Add New Category</option>
+                                    </select>
+                                </td>
+                                <td>${row.formatted_address || ''}</td>
+                                <td>${row.accuracy_score || 'N/A'}</td>
+                            </tr>
+                        `;}).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            document.getElementById('notesTable').innerHTML = table;
+        }
+        
+        // Handle category change (including new category addition)
+        function handleCategoryChange(index, value, selectElement) {
+            if (value === '__ADD_NEW__') {
+                const newCategory = prompt('Enter new category name:');
+                if (newCategory) {
+                    const success = addCustomCategory(newCategory);
+                    if (success) {
+                        // Update the category for this row
+                        if (germanData[index]) {
+                            germanData[index].category = newCategory;
+                            // Save the categorization for future use
+                            saveNoteCategorization(
+                                germanData[index].formatted_address,
+                                germanData[index].content,
+                                newCategory
+                            );
+                            newCategorizationsCount++;
+                        }
+                        // Refresh the table to show the new category in all dropdowns
+                        updateNotesTable();
+                        updateStatistics();
+                        updateVisualization();
+                        showStatus(`Category "${newCategory}" added successfully!`, 'success');
+                    } else {
+                        showStatus('Category already exists or invalid name.', 'error');
+                        // Reset the dropdown to previous value
+                        selectElement.value = germanData[index] ? germanData[index].category : 'Nonsense/Unclear';
+                    }
+                } else {
+                    // User cancelled, reset dropdown
+                    selectElement.value = germanData[index] ? germanData[index].category : 'Nonsense/Unclear';
+                }
+            } else {
+                // Regular category update
+                updateCategory(index, value);
+            }
+        }
+        
+        // Update category (existing function)
+        function updateCategory(index, category) {
+            if (germanData[index]) {
+                const wasUncategorized = germanData[index].category === 'Nonsense/Unclear' && 
+                                       !isNoteCategorizedFromImport(germanData[index].formatted_address, germanData[index].content);
+                
+                germanData[index].category = category;
+                // Save the categorization for future use
+                saveNoteCategorization(
+                    germanData[index].formatted_address,
+                    germanData[index].content,
+                    category
+                );
+                
+                if (wasUncategorized && category !== 'Nonsense/Unclear') {
+                    newCategorizationsCount++;
+                }
+                
+                updateNotesTable();
+                updateStatistics();
+                updateVisualization();
+            }
+        }
+        
+        // Update statistics
+        function updateStatistics() {
+            let filteredData = getFilteredData();
+            
+            if (filteredData.length === 0) {
+                document.getElementById('totalNotes').textContent = '0';
+                document.getElementById('categoryDistribution').innerHTML = 'No data';
+                document.getElementById('qualityMetrics').innerHTML = 'No data';
+                return;
+            }
+            
+            // Total notes
+            document.getElementById('totalNotes').textContent = filteredData.length;
+            
+            // Category distribution
+            const categoryCount = {};
+            filteredData.forEach(row => {
+                categoryCount[row.category] = (categoryCount[row.category] || 0) + 1;
+            });
+            
+            let categoryHtml = '';
+            Object.keys(categoryCount).forEach(category => {
+                const count = categoryCount[category];
+                const percent = ((count / filteredData.length) * 100).toFixed(1);
+                categoryHtml += `<div>${category}: ${count} (${percent}%)</div>`;
+            });
+            document.getElementById('categoryDistribution').innerHTML = categoryHtml;
+            
+            // Quality metrics
+            const practicalCategories = ['Gate/Access Code', 'Delivery Instructions', 'Address'];
+            const practicalCount = filteredData.filter(row => 
+                practicalCategories.includes(row.category)
+            ).length;
+            const nonsenseCount = filteredData.filter(row => 
+                row.category === 'Nonsense/Unclear'
+            ).length;
+            
+            const practicalPercent = ((practicalCount / filteredData.length) * 100).toFixed(1);
+            const nonsensePercent = ((nonsenseCount / filteredData.length) * 100).toFixed(1);
+            
+            document.getElementById('qualityMetrics').innerHTML = `
+                <div>Practical Info: ${practicalCount} (${practicalPercent}%)</div>
+                <div>Nonsense/Unclear: ${nonsenseCount} (${nonsensePercent}%)</div>
+            `;
+        }
+        
+        // Update visualization
+        function updateVisualization() {
+            let filteredData = getFilteredData();
+            
+            if (filteredData.length === 0) {
+                document.getElementById('depotViz').innerHTML = 
+                    '<div class="no-data" style="padding: 100px;">No data to visualize with current filters.</div>';
+                return;
+            }
+            
+            const selectedDepots = getSelectedDepots();
+            const selectedRegions = getSelectedRegions();
+            
+            // Priority 1: If specific depots are selected (not "all"), show pie chart for depot(s)
+            if (!selectedDepots.includes('all') && selectedDepots.length > 0) {
+                generateCategoryPieChart(filteredData, selectedDepots);
+            }
+            // Priority 2: If specific regions are selected (not "all"), show stacked bar chart for region(s)
+            else if (!selectedRegions.includes('all') && selectedRegions.length > 0) {
+                generateStackedBarChart(filteredData, selectedRegions);
+            }
+            // Priority 3: If "All Depots" is selected, show depot distribution pie chart
+            else if (selectedDepots.includes('all') && selectedRegions.includes('all')) {
+                generateDepotDistributionChart(filteredData);
+            }
+            // Default case
+            else {
+                generateDepotDistributionChart(filteredData);
+            }
+        }
+        
+        // Generate category pie chart for specific depots
+        function generateCategoryPieChart(data, selectedDepots) {
+            const categoryCount = {};
+            data.forEach(row => {
+                categoryCount[row.category] = (categoryCount[row.category] || 0) + 1;
+            });
+            
+            const pieData = [{
+                values: Object.values(categoryCount),
+                labels: Object.keys(categoryCount),
+                type: 'pie',
+                marker: {
+                    colors: ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+                },
+                textinfo: 'label+percent',
+                textposition: 'inside'
+            }];
+            
+            const layout = {
+                title: `Category Distribution - ${selectedDepots.length === 1 ? 'Depot ' + selectedDepots[0] : 'Selected Depots'}`,
+                height: 500,
+                margin: { t: 50, b: 50, l: 50, r: 50 }
+            };
+            
+            Plotly.newPlot('depotViz', pieData, layout, {displayModeBar: false});
+        }
+        
+        // Generate depot distribution pie chart (when "All Depots" selected)
+        function generateDepotDistributionChart(data) {
+            const depotCount = {};
+            data.forEach(row => {
+                const depot = row.depot || 'Unknown';
+                depotCount[depot] = (depotCount[depot] || 0) + 1;
+            });
+            
+            const pieData = [{
+                values: Object.values(depotCount),
+                labels: Object.keys(depotCount).map(depot => depot === 'Unknown' ? 'Unknown' : `Depot ${depot}`),
+                type: 'pie',
+                textinfo: 'label+percent',
+                textposition: 'inside'
+            }];
+            
+            const layout = {
+                title: 'Distribution of Notes by Depot',
+                height: 500,
+                margin: { t: 50, b: 50, l: 50, r: 50 }
+            };
+            
+            Plotly.newPlot('depotViz', pieData, layout, {displayModeBar: false});
+        }
+        
+        // Generate stacked bar chart for regions
+        function generateStackedBarChart(data, selectedRegions) {
+            // Get all data regardless of depot selection for regional analysis
+            let regionData = germanData || [];
+            
+            // Apply test notes exclusion
+            const excludeTestNotes = document.getElementById('excludeTestNotes').checked;
+            if (excludeTestNotes) {
+                regionData = regionData.filter(row => row.category !== 'Test');
+            }
+            
+            // Filter by selected regions only
+            if (!selectedRegions.includes('all')) {
+                regionData = regionData.filter(row => selectedRegions.includes(row.region));
+            }
+            
+            const regions = selectedRegions.includes('all') ? 
+                [...new Set(regionData.map(row => row.region))] : selectedRegions;
+            
+            const practicalCategories = ['Gate/Access Code', 'Delivery Instructions', 'Address'];
+            
+            const practicalData = [];
+            const nonsenseData = [];
+            const labels = [];
+            
+            regions.forEach(region => {
+                if (region === 'Unknown Region') return;
+                
+                const regionRows = regionData.filter(row => row.region === region);
+                const practical = regionRows.filter(row => practicalCategories.includes(row.category)).length;
+                const nonsense = regionRows.filter(row => row.category === 'Nonsense/Unclear').length;
+                
+                if (regionRows.length > 0) {
+                    labels.push(region);
+                    practicalData.push(practical);
+                    nonsenseData.push(nonsense);
+                }
+            });
+            
+            const traces = [
+                {
+                    x: labels,
+                    y: practicalData,
+                    name: 'Practical Info',
+                    type: 'bar',
+                    marker: { color: '#2196F3' }
+                },
+                {
+                    x: labels,
+                    y: nonsenseData,
+                    name: 'Nonsense/Unclear',
+                    type: 'bar',
+                    marker: { color: '#f44336' }
+                }
+            ];
+            
+            const title = selectedRegions.includes('all') ? 
+                'Regional Distribution - Practical vs Nonsense Content' :
+                `Selected Regions - Practical vs Nonsense Content`;
+            
+            const layout = {
+                title: title,
+                barmode: 'stack',
+                yaxis: { title: 'Number of Notes' },
+                xaxis: { title: 'Region' },
+                height: 500,
+                margin: { t: 50, b: 80, l: 60, r: 50 }
+            };
+            
+            Plotly.newPlot('depotViz', traces, layout, {displayModeBar: false});
+        }
+        
+        // Get filtered data based on current filter selections
+        function getFilteredData() {
+            if (!germanData) return [];
+            
+            let filteredData = germanData;
+            
+            // Filter by test notes exclusion
+            const excludeTestNotes = document.getElementById('excludeTestNotes').checked;
+            if (excludeTestNotes) {
+                filteredData = filteredData.filter(row => row.category !== 'Test');
+            }
+            
+            const selectedRegions = getSelectedRegions();
+            if (!selectedRegions.includes('all')) {
+                filteredData = filteredData.filter(row => selectedRegions.includes(row.region));
+            }
+            
+            const selectedDepots = getSelectedDepots();
+            if (!selectedDepots.includes('all')) {
+                filteredData = filteredData.filter(row => selectedDepots.includes(row.depot));
+            }
+            
+            return filteredData;
+        }
+        
+        // Show status message
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = type;
+        }
+        
+        // Add event listeners to checkboxes using event delegation
+        function addCheckboxEventListeners() {
+            // Use event delegation for region checkboxes
+            const regionContainer = document.getElementById('regionCheckboxes');
+            regionContainer.addEventListener('change', handleRegionChange);
+            
+            // Use event delegation for depot checkboxes
+            const depotContainer = document.getElementById('depotCheckboxes');
+            depotContainer.addEventListener('change', handleDepotChange);
+            
+            // Add event listener for test notes exclusion
+            const excludeTestCheckbox = document.getElementById('excludeTestNotes');
+            excludeTestCheckbox.addEventListener('change', function() {
+                updateNotesTable();
+                updateStatistics();
+                updateVisualization();
+            });
+        }
+        
+        // Initialize event listeners when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            addCheckboxEventListeners();
+        });
+        
+        // Make functions available globally
+        window.updateCategory = updateCategory;
+        window.handleCategoryChange = handleCategoryChange;
+        window.toggleNotesTable = toggleNotesTable;
+        window.handleRegionChange = handleRegionChange;
+        window.handleDepotChange = handleDepotChange;
+    </script>
+</body>
+</html>
