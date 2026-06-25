@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Depot Insights Survey Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0f1117; --bg-card: #1a1d27; --bg-elevated: #252830; --border: #2e3140;
+            --text-primary: #e8eaed; --text-secondary: #9aa0b0; --text-muted: #6b7280;
+            --accent-blue: #4f8ff7; --accent-blue-dim: rgba(79,143,247,0.15);
+            --accent-green: #34d399; --accent-green-dim: rgba(52,211,153,0.15);
+            --accent-amber: #fbbf24; --accent-amber-dim: rgba(251,191,36,0.15);
+            --accent-rose: #f472b6; --accent-rose-dim: rgba(244,114,182,0.15);
+            --accent-purple: #a78bfa; --accent-purple-dim: rgba(167,139,250,0.15);
+            --accent-cyan: #22d3ee; --accent-cyan-dim: rgba(34,211,238,0.15);
+            --radius: 12px; --radius-sm: 8px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'DM Sans', -apple-system, sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+        .dashboard { max-width: 1440px; margin: 0 auto; padding: 32px 24px; }
+        .header { margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+        .header-top { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+        .header-badge { background: var(--accent-blue-dim); color: var(--accent-blue); padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; }
+        .header h1 { font-size: 1.75rem; font-weight: 700; letter-spacing: -0.5px; }
+        .header p { color: var(--text-secondary); font-size: 0.95rem; margin-top: 4px; }
+        .tabs { display: flex; gap: 4px; background: var(--bg-card); border-radius: var(--radius); padding: 4px; margin-bottom: 28px; overflow-x: auto; border: 1px solid var(--border); }
+        .tab { padding: 10px 20px; cursor: pointer; background: transparent; border: none; color: var(--text-secondary); font-family: inherit; font-size: 0.875rem; font-weight: 500; border-radius: var(--radius-sm); transition: all 0.2s; white-space: nowrap; }
+        .tab:hover { color: var(--text-primary); background: var(--bg-elevated); }
+        .tab.active { background: var(--accent-blue); color: #fff; font-weight: 600; }
+        .tab-content { display: none; } .tab-content.active { display: block; }
+        .section-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+        .section-title .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+        .metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 28px; }
+        .metric-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; position: relative; overflow: hidden; }
+        .metric-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: var(--radius) var(--radius) 0 0; }
+        .metric-card:nth-child(1)::before { background: var(--accent-blue); }
+        .metric-card:nth-child(2)::before { background: var(--accent-green); }
+        .metric-card:nth-child(3)::before { background: var(--accent-amber); }
+        .metric-card:nth-child(4)::before { background: var(--accent-purple); }
+        .metric-card:nth-child(5)::before { background: var(--accent-rose); }
+        .metric-card:nth-child(6)::before { background: var(--accent-cyan); }
+        .metric-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+        .metric-value { font-size: 1.85rem; font-weight: 700; font-family: 'JetBrains Mono', monospace; line-height: 1; }
+        .metric-sub { font-size: 0.8rem; color: var(--text-secondary); margin-top: 6px; }
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 16px; margin-bottom: 28px; }
+        .chart-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; }
+        .chart-card h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+        .chart-card .chart-sub { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px; }
+        .chart-wrap { position: relative; height: 280px; } .chart-wrap.tall { height: 340px; }
+        .findings-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; margin-bottom: 28px; }
+        .findings-card h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 16px; }
+        .finding-item { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+        .finding-item:last-child { border-bottom: none; }
+        .finding-icon { width: 36px; height: 36px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0; }
+        .finding-text { font-size: 0.9rem; line-height: 1.5; color: var(--text-secondary); }
+        .finding-text strong { color: var(--text-primary); }
+        .hl { font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 0.85rem; }
+        .hl-blue { color: var(--accent-blue); } .hl-green { color: var(--accent-green); } .hl-amber { color: var(--accent-amber); } .hl-rose { color: var(--accent-rose); } .hl-purple { color: var(--accent-purple); }
+        .feedback-section { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 28px; }
+        .feedback-header { padding: 20px 24px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .feedback-header h3 { font-size: 0.95rem; font-weight: 600; }
+        .feedback-count { background: var(--accent-blue-dim); color: var(--accent-blue); padding: 2px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+        .table-wrap { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; padding: 12px 16px; font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; background: var(--bg-elevated); border-bottom: 1px solid var(--border); white-space: nowrap; }
+        td { padding: 12px 16px; font-size: 0.85rem; color: var(--text-secondary); border-bottom: 1px solid var(--border); vertical-align: top; }
+        td.orig-text { font-style: italic; color: var(--text-muted); font-size: 0.8rem; max-width: 400px; }
+        td.trans-text { max-width: 400px; }
+        tr:hover td { background: rgba(79,143,247,0.03); }
+        .tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 600; }
+        .tag-gls { background: var(--accent-blue-dim); color: var(--accent-blue); }
+        .tag-sub { background: var(--accent-amber-dim); color: var(--accent-amber); }
+        .tag-country { background: var(--bg-elevated); color: var(--text-secondary); font-size: 0.7rem; }
+        .tag-q { background: var(--accent-purple-dim); color: var(--accent-purple); font-size: 0.7rem; margin-left: 4px; }
+        .completion-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 28px; }
+        .completion-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px 16px; }
+        .completion-label { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px; display: flex; justify-content: space-between; }
+        .completion-bar { height: 6px; background: var(--bg-elevated); border-radius: 3px; overflow: hidden; }
+        .completion-fill { height: 100%; border-radius: 3px; background: var(--accent-blue); }
+        .note-box { background: var(--accent-amber-dim); border: 1px solid rgba(251,191,36,0.2); border-radius: var(--radius-sm); padding: 12px 16px; font-size: 0.82rem; color: var(--accent-amber); margin-bottom: 20px; line-height: 1.5; }
+        .branch-note { background: var(--accent-blue-dim); border: 1px solid rgba(79,143,247,0.2); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 0.8rem; color: var(--accent-blue); margin-bottom: 16px; line-height: 1.45; }
+        @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } .chart-wrap { height: 240px; } .metrics-row { grid-template-columns: repeat(2, 1fr); } }
+    </style>
+</head>
+<body>
+<div class="dashboard">
+    <div class="header">
+        <div class="header-top">
+            <span class="header-badge">Survey Results</span>
+            <span class="header-badge" style="background:var(--accent-green-dim);color:var(--accent-green);">74 Respondents</span>
+        </div>
+        <h1>Depot Insights &mdash; Smart Summary &amp; AI Tools</h1>
+        <p>Smart Summary awareness &amp; AI-tool usage in the BackOffice &mdash; May&ndash;Jun 2026 across 4 countries</p>
+    </div>
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('overall',this)">Overall</button>
+        <button class="tab" onclick="showTab('germany',this)">🇩🇪 Germany</button>
+        <button class="tab" onclick="showTab('austria',this)">🇦🇹 Austria</button>
+        <button class="tab" onclick="showTab('netherlands',this)">🇳🇱 Netherlands</button>
+        <button class="tab" onclick="showTab('canada',this)">🇨🇦 Canada</button>
+        <button class="tab" onclick="showTab('segment',this)">GLS vs Sub</button>
+    </div>
+
+    <!-- Overall Tab -->
+    <div id="overall" class="tab-content active">
+        <div class="findings-card">
+            <h3>📌 Key Findings</h3>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-rose-dim)">👀</div><div class="finding-text"><strong>Low Smart Summary awareness:</strong> Only <span class="hl hl-rose">36.5%</span> of respondents have ever looked at the Smart Summary (<span class="hl hl-rose">27 of 74</span>). The single biggest reason for not looking is simply not knowing it exists &mdash; <span class="hl hl-amber">17 of 27</span> who gave a reason said they <strong>didn&rsquo;t notice it was there</strong>.</div></div>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-green-dim)">⭐</div><div class="finding-text"><strong>Those who use it, like it:</strong> Among the <span class="hl hl-green">19</span> who rated usefulness, <strong>every single one</strong> found it useful &mdash; <span class="hl hl-green">47.4%</span> &ldquo;Very useful&rdquo; and <span class="hl hl-blue">52.6%</span> &ldquo;Somewhat useful.&rdquo; No one rated it low.</div></div>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-amber-dim)">🤝</div><div class="finding-text"><strong>Subcontractors are the power users:</strong> Subs are far more likely to have looked (<span class="hl hl-amber">43.9%</span> vs GLS <span class="hl hl-blue">27.3%</span>) and far more enthusiastic &mdash; <span class="hl hl-amber">8 of 12</span> rating subs said &ldquo;Very useful,&rdquo; while GLS staff were lukewarm (<span class="hl hl-blue">6 of 7</span> only &ldquo;Somewhat&rdquo;).</div></div>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-purple-dim)">🤖</div><div class="finding-text"><strong>Solid AI adoption:</strong> <span class="hl hl-purple">57.9%</span> of the respondents use AI tools at work (<span class="hl hl-purple">22 of 38</span>). Writing &amp; rephrasing messages is the top use case (<span class="hl hl-purple">11 of 19</span>), followed by analysing data, translating, and summarising. Subs who use AI lean &ldquo;regularly&rdquo;; GLS staff lean &ldquo;occasionally.&rdquo;</div></div>
+            <div class="finding-item"><div class="finding-icon" style="background:var(--accent-blue-dim)">🚧</div><div class="finding-text"><strong>AI hesitancy is about exposure, not rejection:</strong> Of those explaining why they don&rsquo;t use AI, the reasons split evenly between <strong>&ldquo;haven&rsquo;t had the chance to try&rdquo;</strong> (<span class="hl hl-blue">6</span>) and <strong>&ldquo;don&rsquo;t see the value&rdquo;</strong> (<span class="hl hl-blue">6</span>), with a few privacy / company-policy concerns.</div></div>
+        </div>
+
+        <div class="metrics-row">
+            <div class="metric-card"><div class="metric-label">Total Respondents</div><div class="metric-value">74</div><div class="metric-sub">4 countries</div></div>
+            <div class="metric-card"><div class="metric-label">GLS Internal</div><div class="metric-value">33</div><div class="metric-sub">44.6% of total</div></div>
+            <div class="metric-card"><div class="metric-label">Subcontractors</div><div class="metric-value">41</div><div class="metric-sub">55.4% of total</div></div>
+            <div class="metric-card"><div class="metric-label">Looked at Smart Summary</div><div class="metric-value">36.5%</div><div class="metric-sub">27 of 74</div></div>
+            <div class="metric-card"><div class="metric-label">Found It Useful</div><div class="metric-value">100%</div><div class="metric-sub">19 of 19 who rated</div></div>
+            <div class="metric-card"><div class="metric-label">Use AI at Work</div><div class="metric-value">57.9%</div><div class="metric-sub">22 of 38</div></div>
+        </div>
+
+        <div class="charts-grid">
+            <div class="chart-card"><h3>Respondents by Country</h3><div class="chart-sub">n = 74</div><div class="chart-wrap"><canvas id="chartCountry"></canvas></div></div>
+            <div class="chart-card"><h3>Have You Looked at the Smart Summary?</h3><div class="chart-sub">n = 74</div><div class="chart-wrap"><canvas id="chartLooked"></canvas></div></div>
+            <div class="chart-card"><h3>&ldquo;Looked&rdquo; Rate by Country</h3><div class="chart-sub">% who answered Yes &middot; n = 74</div><div class="chart-wrap"><canvas id="chartLookedCountry"></canvas></div></div>
+            <div class="chart-card"><h3>Why Haven&rsquo;t You Looked?</h3><div class="chart-sub">n = 27 who gave a reason &middot; Multi-select</div><div class="chart-wrap"><canvas id="chartWhyNotLooked"></canvas></div></div>
+            <div class="chart-card"><h3>How Useful Did You Find It?</h3><div class="chart-sub">n = 19 of the 27 who looked &middot; Yes-branch</div><div class="chart-wrap"><canvas id="chartUseful"></canvas></div></div>
+            <div class="chart-card"><h3>Do You Use AI Tools at Work?</h3><div class="chart-sub">n = 38</div><div class="chart-wrap"><canvas id="chartUseAI"></canvas></div></div>
+            <div class="chart-card"><h3>What Do You Use AI For?</h3><div class="chart-sub">n = 19 AI users &middot; Multi-select</div><div class="chart-wrap"><canvas id="chartAIUse"></canvas></div></div>
+            <div class="chart-card"><h3>Why Don&rsquo;t You Use AI?</h3><div class="chart-sub">n = 14 who gave a reason &middot; Multi-select</div><div class="chart-wrap"><canvas id="chartWhyNotAI"></canvas></div></div>
+        </div>
+
+        <div class="note-box">⚠️ This survey <strong>branches</strong>: respondents who said they had looked at the Smart Summary were asked about usefulness &amp; what they like; those who hadn&rsquo;t were asked why not. Percentages are calculated against the number of people who answered each specific question, not the full 74. Several questions had heavy drop-off &mdash; denominators (n) are shown on every chart.</div>
+
+        <div class="feedback-section">
+            <div class="feedback-header"><h3>Open-Text Feedback</h3><span class="feedback-count">substantive responses across &ldquo;what you like,&rdquo; &ldquo;why not useful,&rdquo; and the AI free-text question</span></div>
+            <div class="table-wrap"><table><thead><tr><th>Country</th><th>Type</th><th>Question</th><th>Original</th><th>Translation</th></tr></thead><tbody id="tbodyFeedback"></tbody></table></div>
+        </div>
+
+        <div class="section-title"><span class="dot" style="background:var(--accent-blue)"></span> Response Completion by Question</div>
+        <div class="completion-row">
+            <div class="completion-item"><div class="completion-label"><span>Looked? (all)</span><span>74/74 (100%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:100%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Why not looked (of 47 No)</span><span>27/47 (57.4%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:57.4%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Usefulness (of 27 Yes)</span><span>19/27 (70.4%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:70.4%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Use AI?</span><span>38/74 (51.4%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:51.4%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>What AI used for (of users)</span><span>19/22 (86.4%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:86.4%"></div></div></div>
+            <div class="completion-item"><div class="completion-label"><span>Why not AI (of non-users)</span><span>14/16 (87.5%)</span></div><div class="completion-bar"><div class="completion-fill" style="width:87.5%"></div></div></div>
+        </div>
+    </div>
+
+    <div id="germany" class="tab-content"></div>
+    <div id="austria" class="tab-content"></div>
+    <div id="netherlands" class="tab-content"></div>
+    <div id="canada" class="tab-content"></div>
+    <div id="segment" class="tab-content"></div>
+</div>
+
+<script>
+// ============================================================
+// VERIFIED DATA (hardcoded from Python analysis)
+// ============================================================
+var DATA = {
+    countries: {
+        Germany:    {total:47, gls:19, sub:28, flag:'🇩🇪'},
+        Austria:    {total:2,  gls:1,  sub:1,  flag:'🇦🇹'},
+        Netherlands:{total:11, gls:5,  sub:6,  flag:'🇳🇱'},
+        Canada:     {total:14, gls:8,  sub:6,  flag:'🇨🇦'}
+    },
+    // Q1 Looked [Yes, No]
+    looked: {
+        overall:[27,47], GLS:[9,24], Sub:[18,23],
+        Germany:[16,31], Austria:[1,1], Netherlands:[5,6], Canada:[5,9],
+        n:{overall:74,GLS:33,Sub:41,Germany:47,Austria:2,Netherlands:11,Canada:14}
+    },
+    // Usefulness [Very, Somewhat] (only two values appeared)
+    useful: {
+        labels:['Very useful','Somewhat useful'],
+        overall:[9,10], GLS:[1,6], Sub:[8,4],
+        Germany:[4,6], Austria:[1,0], Netherlands:[2,2], Canada:[2,2],
+        n:{overall:19,GLS:7,Sub:12,Germany:10,Austria:1,Netherlands:4,Canada:4}
+    },
+    // Use AI [Yes regularly, Yes occasionally, No not at work, No don't use at all]
+    useai: {
+        labels:['Yes, regularly','Yes, occasionally','No, not at work','No, never'],
+        overall:[11,11,9,7], GLS:[2,9,6,3], Sub:[9,2,3,4],
+        Germany:[8,5,7,4], Austria:[0,1,0,0], Netherlands:[1,4,0,1], Canada:[2,1,2,2],
+        n:{overall:38,GLS:20,Sub:18,Germany:24,Austria:1,Netherlands:6,Canada:14}
+    },
+    // Why not looked [didn't notice, no time, saw-not-relevant, prefer self, not needed]
+    whyNotLooked: {
+        labels:['Didn\u2019t notice it was there','No time to read summaries','Saw it, seemed not relevant','Prefer to check data myself','Not needed in my role'],
+        overall:[17,3,3,2,2], GLS:[10,2,1,1,2], Sub:[7,1,2,1,0],
+        Germany:[13,1,3,1,1], Austria:[0,0,0,0,0], Netherlands:[2,1,0,1,0], Canada:[2,1,0,0,1],
+        n:{overall:27,GLS:16,Sub:11,Germany:19,Austria:0,Netherlands:4,Canada:4}
+    },
+    // What AI used for [write, analyse, translate, summarise, quick Q, plan]
+    aiUse: {
+        labels:['Writing / rephrasing messages','Analysing data','Translating content','Summarising information','Answering quick questions','Planning / organising tasks'],
+        overall:[11,8,7,7,4,2], GLS:[8,3,6,4,2,1], Sub:[3,5,1,3,2,1],
+        Germany:[7,4,5,6,3,1], Austria:[1,1,0,0,0,0], Netherlands:[2,3,2,1,1,1], Canada:[1,0,0,0,0,0],
+        n:{overall:19,GLS:11,Sub:8,Germany:13,Austria:1,Netherlands:4,Canada:1}
+    },
+    // Why not AI [haven't tried, don't see value, privacy, company policy]
+    whyNotAI: {
+        labels:['Haven\u2019t had the chance to try','Don\u2019t see the value','Data privacy concerns','Company doesn\u2019t allow it'],
+        overall:[6,6,2,1], GLS:[5,2,1,1], Sub:[1,4,1,0],
+        Germany:[4,3,2,1], Austria:[0,0,0,0], Netherlands:[2,0,0,0], Canada:[0,3,0,0],
+        n:{overall:14,GLS:8,Sub:6,Germany:9,Austria:0,Netherlands:2,Canada:3}
+    },
+    // Open-text feedback. q: LIKE = what they like, NOTUSE = why not useful, AI = AI free-text
+    feedback: [
+        {c:'Canada',t:'SUB',q:'LIKE',orig:'everything. especially the eta\u2019s',trans:'\u2014'},
+        {c:'Austria',t:'SUB',q:'LIKE',orig:'Ich kann alles verfolgen',trans:'I can track everything'},
+        {c:'Germany',t:'SUB',q:'LIKE',orig:'Bettermile touranalyze',trans:'\u2014'},
+        {c:'Germany',t:'GLS',q:'LIKE',orig:'\u00dcbersicht',trans:'The overview'},
+        {c:'Germany',t:'GLS',q:'NOTUSE',orig:'Ich finde es etwas zu kurz, w\u00fcrde mir ein bisschen mehr Infos w\u00fcnschen.',trans:'I find it a bit too short \u2014 I\u2019d like a bit more info.'},
+        {c:'Canada',t:'SUB',q:'NOTUSE',orig:'just like more control and info',trans:'\u2014'},
+        {c:'Canada',t:'SUB',q:'AI',orig:'ai in routing has caused a lot of disruptions. made up addresses, incorrect pins, reoptimizing not working etc etc it ws the worse thing integrated in the app. numerous issues, almost switched to using an old App in place of Bettermile',trans:'\u2014'},
+        {c:'Germany',t:'SUB',q:'AI',orig:'Paketshop Anlieferungen. Welche Tour die meisten anliefert. Besserer Tourenschnitt. Bessere Beladungsaufteilung. Reklamationen der Fahrer etc.',trans:'ParcelShop deliveries \u2014 which tour delivers the most. Better tour layout. Better load distribution. Driver complaints etc.'},
+        {c:'Germany',t:'GLS',q:'AI',orig:'Bei sehr langen Mails / Mailverl\u00e4ufen ist es einfacher, einen schnellen \u00dcberblick zu bekommen.',trans:'With very long emails / email threads it\u2019s easier to get a quick overview.'},
+        {c:'Germany',t:'GLS',q:'AI',orig:'schnellere Suche',trans:'Faster search'},
+        {c:'Austria',t:'SUB',q:'AI',orig:'Hilft viel aber trotzdem muss ich eigene Kopf auch nutzen \uD83D\uDE0A',trans:'Helps a lot, but I still have to use my own head too \uD83D\uDE0A'}
+    ]
+};
+var QLABEL = {LIKE:'Likes', NOTUSE:'Not useful', AI:'AI ideas'};
+
+// ============================================================
+// CHART SETUP
+// ============================================================
+Chart.defaults.color = '#9aa0b0';
+Chart.defaults.font.family = "'DM Sans', sans-serif";
+Chart.defaults.font.size = 12;
+
+var C = { blue:'#4f8ff7', green:'#34d399', amber:'#fbbf24', rose:'#f472b6', purple:'#a78bfa', cyan:'#22d3ee', slate:'#64748b', indigo:'#6366f1', orange:'#f97316' };
+var gridOpts = { color:'rgba(255,255,255,0.06)' };
+
+function makeChart(id, cfg) {
+    try {
+        var el = document.getElementById(id);
+        if (!el) { console.error('Canvas not found:', id); return null; }
+        return new Chart(el, cfg);
+    } catch(e) { console.error('Chart error ' + id, e); return null; }
+}
+function pct(arr, n) { return arr.map(function(v){ return n>0 ? +(v/n*100).toFixed(1) : 0; }); }
+function multiTip(dataArr, n) {
+    return {callbacks:{label:function(ctx){ return ctx.raw+'% ('+dataArr[ctx.dataIndex]+' of '+n+')'; }}};
+}
+
+// ============================================================
+// OVERALL CHARTS
+// ============================================================
+
+// 1. Respondents by Country (grouped)
+makeChart('chartCountry', {
+    type:'bar',
+    data:{ labels:['Germany','Austria','Netherlands','Canada'], datasets:[
+        {label:'GLS',data:[19,1,5,8],backgroundColor:C.blue,borderRadius:4},
+        {label:'Subcontractor',data:[28,1,6,6],backgroundColor:C.amber,borderRadius:4}
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top',labels:{boxWidth:12,padding:14}}}, scales:{x:{grid:gridOpts},y:{beginAtZero:true,grid:gridOpts}} }
+});
+
+// 2. Looked? (doughnut)
+makeChart('chartLooked', {
+    type:'doughnut',
+    data:{ labels:['Yes, looked','No, never looked'], datasets:[{data:DATA.looked.overall,backgroundColor:[C.green,C.rose],borderWidth:0,hoverOffset:8}] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:10}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/74*100).toFixed(1)+'%)';}}}}}
+});
+
+// 3. Looked rate by country
+makeChart('chartLookedCountry', {
+    type:'bar',
+    data:{ labels:['Germany','Austria','Netherlands','Canada'], datasets:[{label:'% looked',data:[
+        +(16/47*100).toFixed(1), +(1/2*100).toFixed(1), +(5/11*100).toFixed(1), +(5/14*100).toFixed(1)
+    ],backgroundColor:[C.blue,C.rose,C.amber,C.cyan],borderRadius:6}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{callbacks:{label:function(ctx){return ctx.raw+'%';}}}}, scales:{x:{grid:gridOpts},y:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}}} }
+});
+
+// 4. Why not looked (horizontal bar)
+makeChart('chartWhyNotLooked', {
+    type:'bar',
+    data:{ labels:DATA.whyNotLooked.labels, datasets:[{label:'%',data:pct(DATA.whyNotLooked.overall,27),backgroundColor:[C.rose,C.amber,C.purple,C.cyan,C.slate],borderRadius:4}] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:multiTip(DATA.whyNotLooked.overall,27)}, scales:{x:{beginAtZero:true,max:80,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}} }
+});
+
+// 5. Usefulness (doughnut)
+makeChart('chartUseful', {
+    type:'doughnut',
+    data:{ labels:DATA.useful.labels, datasets:[{data:DATA.useful.overall,backgroundColor:[C.green,C.blue],borderWidth:0,hoverOffset:8}] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:10}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/19*100).toFixed(1)+'%)';}}}}}
+});
+
+// 6. Use AI (doughnut)
+makeChart('chartUseAI', {
+    type:'doughnut',
+    data:{ labels:DATA.useai.labels, datasets:[{data:DATA.useai.overall,backgroundColor:[C.green,C.blue,C.amber,C.rose],borderWidth:0,hoverOffset:8}] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'60%', plugins:{legend:{position:'bottom',labels:{boxWidth:12,padding:10}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/38*100).toFixed(1)+'%)';}}}}}
+});
+
+// 7. What AI used for (horizontal bar)
+makeChart('chartAIUse', {
+    type:'bar',
+    data:{ labels:DATA.aiUse.labels, datasets:[{label:'%',data:pct(DATA.aiUse.overall,19),backgroundColor:[C.purple,C.blue,C.cyan,C.green,C.amber,C.slate],borderRadius:4}] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:multiTip(DATA.aiUse.overall,19)}, scales:{x:{beginAtZero:true,max:80,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}} }
+});
+
+// 8. Why not AI (horizontal bar)
+makeChart('chartWhyNotAI', {
+    type:'bar',
+    data:{ labels:DATA.whyNotAI.labels, datasets:[{label:'%',data:pct(DATA.whyNotAI.overall,14),backgroundColor:[C.blue,C.rose,C.amber,C.slate],borderRadius:4}] },
+    options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:multiTip(DATA.whyNotAI.overall,14)}, scales:{x:{beginAtZero:true,max:60,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}} }
+});
+
+// ============================================================
+// FEEDBACK TABLE (overall)
+// ============================================================
+(function(){
+    var tbody = document.getElementById('tbodyFeedback');
+    DATA.feedback.forEach(function(f){
+        var tr = document.createElement('tr');
+        var cInfo = DATA.countries[f.c];
+        var isEn = (f.trans === '\u2014');
+        tr.innerHTML = '<td><span class="tag tag-country">'+(cInfo?cInfo.flag:'')+' '+f.c+'</span></td>'
+            +'<td><span class="tag '+(f.t==='GLS'?'tag-gls':'tag-sub')+'">'+f.t+'</span></td>'
+            +'<td><span class="tag tag-q">'+QLABEL[f.q]+'</span></td>'
+            +(isEn
+                ? '<td class="trans-text">'+f.orig+'</td><td class="trans-text">\u2014</td>'
+                : '<td class="orig-text">'+f.orig+'</td><td class="trans-text">'+f.trans+'</td>');
+        tbody.appendChild(tr);
+    });
+})();
+
+// ============================================================
+// TAB SWITCHING
+// ============================================================
+function showTab(id, btn) {
+    document.querySelectorAll('.tab-content').forEach(function(el){ el.classList.remove('active'); });
+    document.querySelectorAll('.tab').forEach(function(el){ el.classList.remove('active'); });
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+    if (['germany','austria','netherlands','canada'].indexOf(id) !== -1) initCountryTab(id);
+    if (id === 'segment') initSegmentTab();
+}
+
+// ============================================================
+// COUNTRY TAB BUILDER
+// ============================================================
+var countryInited = {};
+function initCountryTab(tabId) {
+    var nameMap = {germany:'Germany',austria:'Austria',netherlands:'Netherlands',canada:'Canada'};
+    var name = nameMap[tabId];
+    if (countryInited[tabId]) return;
+    countryInited[tabId] = true;
+    var c = DATA.countries[name];
+
+    var lookedN = DATA.looked.n[name], lookedD = DATA.looked[name];
+    var usefulN = DATA.useful.n[name], usefulD = DATA.useful[name];
+    var useaiN  = DATA.useai.n[name],  useaiD  = DATA.useai[name];
+    var wnlN = DATA.whyNotLooked.n[name], wnlD = DATA.whyNotLooked[name];
+    var aiuN = DATA.aiUse.n[name], aiuD = DATA.aiUse[name];
+    var wnaN = DATA.whyNotAI.n[name], wnaD = DATA.whyNotAI[name];
+
+    var lookedYes = lookedD[0], lookedRate = lookedN>0 ? (lookedYes/lookedN*100).toFixed(1) : 'N/A';
+    var aiYes = useaiD[0]+useaiD[1], aiRate = useaiN>0 ? (aiYes/useaiN*100).toFixed(1) : 'N/A';
+
+    var thin = (name === 'Austria');
+
+    var container = document.getElementById(tabId);
+    container.innerHTML =
+        (thin ? '<div class="note-box">⚠️ Austria has only <strong>2 respondents</strong>. Figures here are shown for completeness but are not statistically meaningful.</div>' : '')
+        +'<div class="metrics-row">'
+        +'<div class="metric-card"><div class="metric-label">Total Respondents</div><div class="metric-value">'+c.total+'</div><div class="metric-sub">GLS: '+c.gls+' · Sub: '+c.sub+'</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Looked at Summary</div><div class="metric-value">'+lookedRate+(lookedRate==='N/A'?'':'%')+'</div><div class="metric-sub">'+lookedYes+' of '+lookedN+'</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Rated It Useful</div><div class="metric-value">'+(usefulN>0?'100%':'N/A')+'</div><div class="metric-sub">'+usefulN+' rated</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Use AI at Work</div><div class="metric-value">'+aiRate+(aiRate==='N/A'?'':'%')+'</div><div class="metric-sub">'+aiYes+' of '+useaiN+' answered</div></div>'
+        +'</div>'
+        +'<div class="charts-grid">'
+        +'<div class="chart-card"><h3>Looked at the Smart Summary?</h3><div class="chart-sub">n = '+lookedN+'</div><div class="chart-wrap"><canvas id="c_'+tabId+'_looked"></canvas></div></div>'
+        +'<div class="chart-card"><h3>Why Haven\u2019t You Looked?</h3><div class="chart-sub">n = '+wnlN+' · Multi-select</div><div class="chart-wrap"><canvas id="c_'+tabId+'_wnl"></canvas></div></div>'
+        +'<div class="chart-card"><h3>How Useful Did You Find It?</h3><div class="chart-sub">n = '+usefulN+' · Yes-branch</div><div class="chart-wrap"><canvas id="c_'+tabId+'_useful"></canvas></div></div>'
+        +'<div class="chart-card"><h3>Do You Use AI Tools?</h3><div class="chart-sub">n = '+useaiN+'</div><div class="chart-wrap"><canvas id="c_'+tabId+'_useai"></canvas></div></div>'
+        +'<div class="chart-card"><h3>What Do You Use AI For?</h3><div class="chart-sub">n = '+aiuN+' · Multi-select</div><div class="chart-wrap"><canvas id="c_'+tabId+'_aiu"></canvas></div></div>'
+        +'<div class="chart-card"><h3>Why Don\u2019t You Use AI?</h3><div class="chart-sub">n = '+wnaN+' · Multi-select</div><div class="chart-wrap"><canvas id="c_'+tabId+'_wna"></canvas></div></div>'
+        +'</div>'
+        +'<div class="feedback-section"><div class="feedback-header"><h3>'+c.flag+' '+name+' — Open Feedback</h3></div>'
+        +'<div class="table-wrap"><table><thead><tr><th>Type</th><th>Question</th><th>Original</th><th>Translation</th></tr></thead><tbody id="fb_'+tabId+'"></tbody></table></div></div>';
+
+    setTimeout(function(){
+        // Looked doughnut
+        makeChart('c_'+tabId+'_looked', {type:'doughnut',data:{labels:['Yes','No'],datasets:[{data:lookedD,backgroundColor:[C.green,C.rose],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:8}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+(lookedN?' ('+(ctx.raw/lookedN*100).toFixed(1)+'%)':'');}}}}}});
+        // Why not looked
+        if(wnlN>0) makeChart('c_'+tabId+'_wnl', {type:'bar',data:{labels:DATA.whyNotLooked.labels,datasets:[{label:'%',data:pct(wnlD,wnlN),backgroundColor:[C.rose,C.amber,C.purple,C.cyan,C.slate],borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:multiTip(wnlD,wnlN)},scales:{x:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}}}});
+        else emptyCanvas('c_'+tabId+'_wnl');
+        // Usefulness
+        if(usefulN>0) makeChart('c_'+tabId+'_useful', {type:'doughnut',data:{labels:DATA.useful.labels,datasets:[{data:usefulD,backgroundColor:[C.green,C.blue],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:8}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/usefulN*100).toFixed(1)+'%)';}}}}}});
+        else emptyCanvas('c_'+tabId+'_useful');
+        // Use AI
+        if(useaiN>0) makeChart('c_'+tabId+'_useai', {type:'doughnut',data:{labels:DATA.useai.labels,datasets:[{data:useaiD,backgroundColor:[C.green,C.blue,C.amber,C.rose],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,padding:8}},tooltip:{callbacks:{label:function(ctx){return ctx.label+': '+ctx.raw+' ('+(ctx.raw/useaiN*100).toFixed(1)+'%)';}}}}}});
+        else emptyCanvas('c_'+tabId+'_useai');
+        // AI use for
+        if(aiuN>0) makeChart('c_'+tabId+'_aiu', {type:'bar',data:{labels:DATA.aiUse.labels,datasets:[{label:'%',data:pct(aiuD,aiuN),backgroundColor:[C.purple,C.blue,C.cyan,C.green,C.amber,C.slate],borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:multiTip(aiuD,aiuN)},scales:{x:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}}}});
+        else emptyCanvas('c_'+tabId+'_aiu');
+        // Why not AI
+        if(wnaN>0) makeChart('c_'+tabId+'_wna', {type:'bar',data:{labels:DATA.whyNotAI.labels,datasets:[{label:'%',data:pct(wnaD,wnaN),backgroundColor:[C.blue,C.rose,C.amber,C.slate],borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:multiTip(wnaD,wnaN)},scales:{x:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}}}});
+        else emptyCanvas('c_'+tabId+'_wna');
+
+        // Feedback
+        var fbBody = document.getElementById('fb_'+tabId);
+        var cfb = DATA.feedback.filter(function(f){return f.c===name;});
+        if(!cfb.length) fbBody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--text-muted)">No substantive open-text feedback for this country.</td></tr>';
+        else cfb.forEach(function(f){
+            var tr=document.createElement('tr');
+            var isEn=(f.trans==='\u2014');
+            tr.innerHTML='<td><span class="tag '+(f.t==='GLS'?'tag-gls':'tag-sub')+'">'+f.t+'</span></td>'
+                +'<td><span class="tag tag-q">'+QLABEL[f.q]+'</span></td>'
+                +(isEn?'<td class="trans-text">'+f.orig+'</td><td class="trans-text">\u2014</td>':'<td class="orig-text">'+f.orig+'</td><td class="trans-text">'+f.trans+'</td>');
+            fbBody.appendChild(tr);
+        });
+    }, 60);
+}
+
+function emptyCanvas(id){
+    var el = document.getElementById(id);
+    if(!el) return;
+    var p = el.parentElement;
+    p.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-size:0.85rem;text-align:center;">No responses to this question<br>in this segment.</div>';
+}
+
+// ============================================================
+// SEGMENT TAB (GLS vs Sub)
+// ============================================================
+var segInited = false;
+function initSegmentTab() {
+    if(segInited) return; segInited=true;
+    var el = document.getElementById('segment');
+
+    var glsLookedRate = (DATA.looked.GLS[0]/DATA.looked.n.GLS*100).toFixed(1);
+    var subLookedRate = (DATA.looked.Sub[0]/DATA.looked.n.Sub*100).toFixed(1);
+    var glsAiRate = ((DATA.useai.GLS[0]+DATA.useai.GLS[1])/DATA.useai.n.GLS*100).toFixed(1);
+    var subAiRate = ((DATA.useai.Sub[0]+DATA.useai.Sub[1])/DATA.useai.n.Sub*100).toFixed(1);
+
+    el.innerHTML =
+        '<div class="findings-card"><h3>🔀 GLS Internal vs Subcontractor — Key Differences</h3>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-blue-dim)">👥</div><div class="finding-text"><strong>Composition:</strong> <span class="hl hl-amber">41</span> subcontractors vs <span class="hl hl-blue">33</span> GLS internal staff (identified by <span class="hl">gls-</span> in the email address).</div></div>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-green-dim)">👀</div><div class="finding-text"><strong>Subs explore more:</strong> <span class="hl hl-amber">'+subLookedRate+'%</span> of subs have looked at the Smart Summary vs only <span class="hl hl-blue">'+glsLookedRate+'%</span> of GLS staff.</div></div>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-purple-dim)">⭐</div><div class="finding-text"><strong>Subs are more enthusiastic:</strong> Among the respondents, <span class="hl hl-amber">8 of 12</span> subs said &ldquo;Very useful,&rdquo; while <span class="hl hl-blue">6 of 7</span> GLS raters said only &ldquo;Somewhat.&rdquo; Both groups rated it useful overall, but subs see more value.</div></div>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-rose-dim)">🤖</div><div class="finding-text"><strong>AI usage is similar in volume, different in intensity:</strong> <span class="hl hl-amber">'+subAiRate+'%</span> of subs vs <span class="hl hl-blue">'+glsAiRate+'%</span> of GLS use AI. But subs who use it lean <strong>&ldquo;regularly&rdquo;</strong> (9 of 11), while GLS users lean <strong>&ldquo;occasionally&rdquo;</strong> (9 of 11).</div></div>'
+        +'<div class="finding-item"><div class="finding-icon" style="background:var(--accent-cyan-dim)">🎯</div><div class="finding-text"><strong>Different AI use cases:</strong> GLS staff mostly use AI for <strong>writing/rephrasing</strong> and <strong>translating</strong>; subs spread across <strong>analysing data</strong>, writing, and summarising. GLS non-users more often &ldquo;haven&rsquo;t had the chance&rdquo;; subs more often &ldquo;don&rsquo;t see the value.&rdquo;</div></div>'
+        +'</div>'
+        +'<div class="metrics-row">'
+        +'<div class="metric-card"><div class="metric-label">GLS Internal</div><div class="metric-value">33</div><div class="metric-sub">44.6% of total</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Subcontractors</div><div class="metric-value">41</div><div class="metric-sub">55.4% of total</div></div>'
+        +'<div class="metric-card"><div class="metric-label">GLS Looked</div><div class="metric-value">'+glsLookedRate+'%</div><div class="metric-sub">'+DATA.looked.GLS[0]+' of '+DATA.looked.n.GLS+'</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Sub Looked</div><div class="metric-value">'+subLookedRate+'%</div><div class="metric-sub">'+DATA.looked.Sub[0]+' of '+DATA.looked.n.Sub+'</div></div>'
+        +'<div class="metric-card"><div class="metric-label">GLS Use AI</div><div class="metric-value">'+glsAiRate+'%</div><div class="metric-sub">'+(DATA.useai.GLS[0]+DATA.useai.GLS[1])+' of '+DATA.useai.n.GLS+'</div></div>'
+        +'<div class="metric-card"><div class="metric-label">Sub Use AI</div><div class="metric-value">'+subAiRate+'%</div><div class="metric-sub">'+(DATA.useai.Sub[0]+DATA.useai.Sub[1])+' of '+DATA.useai.n.Sub+'</div></div>'
+        +'</div>'
+        +'<div class="charts-grid">'
+        +'<div class="chart-card"><h3>Looked at Smart Summary — GLS vs Sub</h3><div class="chart-sub">GLS n='+DATA.looked.n.GLS+' · Sub n='+DATA.looked.n.Sub+'</div><div class="chart-wrap"><canvas id="seg_looked"></canvas></div></div>'
+        +'<div class="chart-card"><h3>Usefulness — GLS vs Sub</h3><div class="chart-sub">GLS n='+DATA.useful.n.GLS+' · Sub n='+DATA.useful.n.Sub+'</div><div class="chart-wrap"><canvas id="seg_useful"></canvas></div></div>'
+        +'<div class="chart-card"><h3>AI Usage — GLS vs Sub</h3><div class="chart-sub">GLS n='+DATA.useai.n.GLS+' · Sub n='+DATA.useai.n.Sub+'</div><div class="chart-wrap"><canvas id="seg_useai"></canvas></div></div>'
+        +'<div class="chart-card"><h3>What AI Used For — GLS vs Sub</h3><div class="chart-sub">GLS n='+DATA.aiUse.n.GLS+' · Sub n='+DATA.aiUse.n.Sub+'</div><div class="chart-wrap tall"><canvas id="seg_aiu"></canvas></div></div>'
+        +'</div>';
+
+    setTimeout(function(){
+        // Looked: % yes
+        makeChart('seg_looked',{type:'bar',data:{labels:['Yes, looked','No, never'],datasets:[
+            {label:'GLS',data:pct(DATA.looked.GLS,DATA.looked.n.GLS),backgroundColor:C.blue,borderRadius:4},
+            {label:'Sub',data:pct(DATA.looked.Sub,DATA.looked.n.Sub),backgroundColor:C.amber,borderRadius:4}
+        ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw+'%';}}}},scales:{x:{grid:gridOpts},y:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}}}}});
+        // Usefulness
+        makeChart('seg_useful',{type:'bar',data:{labels:DATA.useful.labels,datasets:[
+            {label:'GLS',data:pct(DATA.useful.GLS,DATA.useful.n.GLS),backgroundColor:C.blue,borderRadius:4},
+            {label:'Sub',data:pct(DATA.useful.Sub,DATA.useful.n.Sub),backgroundColor:C.amber,borderRadius:4}
+        ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw+'%';}}}},scales:{x:{grid:gridOpts},y:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}}}}});
+        // AI usage
+        makeChart('seg_useai',{type:'bar',data:{labels:DATA.useai.labels,datasets:[
+            {label:'GLS',data:pct(DATA.useai.GLS,DATA.useai.n.GLS),backgroundColor:C.blue,borderRadius:4},
+            {label:'Sub',data:pct(DATA.useai.Sub,DATA.useai.n.Sub),backgroundColor:C.amber,borderRadius:4}
+        ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw+'%';}}}},scales:{x:{grid:gridOpts},y:{beginAtZero:true,max:60,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}}}}});
+        // AI use for
+        makeChart('seg_aiu',{type:'bar',data:{labels:DATA.aiUse.labels,datasets:[
+            {label:'GLS',data:pct(DATA.aiUse.GLS,DATA.aiUse.n.GLS),backgroundColor:C.blue,borderRadius:4},
+            {label:'Sub',data:pct(DATA.aiUse.Sub,DATA.aiUse.n.Sub),backgroundColor:C.amber,borderRadius:4}
+        ]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',labels:{boxWidth:12}},tooltip:{callbacks:{label:function(ctx){return ctx.dataset.label+': '+ctx.raw+'%';}}}},scales:{x:{beginAtZero:true,max:100,grid:gridOpts,ticks:{callback:function(v){return v+'%';}}},y:{grid:{display:false}}}}});
+    },60);
+}
+</script>
+</body>
+</html>
