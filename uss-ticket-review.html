@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>USS ticket review</title>
+<style>
+:root{
+  --ink:#131A26; --paper:#F1F3F6; --card:#FFF; --line:#DCE0E6; --line2:#EDEFF3;
+  --muted:#6B7583; --faint:#98A0AC;
+  --route:#0E7C86; --route-bg:#E2F1F1;
+  --hold:#B0700B; --hold-bg:#FBF0DC;
+  --stale:#A63E34; --stale-bg:#F9E7E4;
+  --noise:#7C8593; --noise-bg:#EBEDF0;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;-webkit-font-smoothing:antialiased}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em;line-height:1.2}
+p{margin:0}
+button{font-family:inherit;font-size:inherit;color:inherit}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.fig{font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;letter-spacing:-.02em}
+.eyebrow{font-family:var(--mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}
+.wrap{max-width:1180px;margin:0 auto;padding:24px}
+.sheet{background:var(--card);border:1px solid var(--line);border-radius:3px}
+.pad{padding:19px 21px}
+.grid{display:grid;gap:12px}
+.g5{grid-template-columns:repeat(auto-fit,minmax(172px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+.sec{margin-top:24px}
+.sec-h{display:flex;flex-wrap:wrap;gap:5px 16px;align-items:baseline;margin-bottom:11px}
+.sec-h h2{font-size:16.5px}
+.sec-h p{font-size:12.5px;color:var(--muted);max-width:62ch}
+.scrollx{overflow-x:auto}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* masthead */
+.mast{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30}
+.mast-in{max-width:1180px;margin:0 auto;padding:13px 24px;display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center}
+.mast h1{font-size:16px}
+.mast .right{margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.viewtabs{display:flex;gap:5px}
+.vt{background:none;border:1px solid var(--line);border-radius:2px;padding:6px 13px;cursor:pointer;font-size:13.5px}
+.vt:hover{border-color:var(--ink)}
+.vt[aria-selected="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+
+/* controls */
+.ctl{background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:53px;z-index:20}
+.ctl-in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;flex-wrap:wrap;gap:12px 20px;align-items:flex-end}
+label.lab{display:block;font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+input[type=date],input[type=search],input[type=text]{padding:6px 9px;border:1px solid var(--line);border-radius:2px;font-family:var(--sans);font-size:13.5px;background:var(--card);color:var(--ink)}
+input[type=search]{width:100%}
+.chip{background:none;border:1px solid var(--line);border-radius:2px;padding:5px 10px;cursor:pointer;font-size:12.5px}
+.chip:hover{border-color:var(--ink)}
+.chip[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:#fff}
+.chip:focus-visible,input:focus-visible,button:focus-visible{outline:2px solid var(--route);outline-offset:2px}
+.daycount{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.daycount.bad{color:var(--stale)}
+input.bad{border-color:var(--stale);background:var(--stale-bg)}
+.btn.sm{padding:6px 13px;font-size:13px}
+.btn:disabled{opacity:.38;cursor:default}
+.dirty{font-family:var(--mono);font-size:11px;color:var(--hold)}
+.ms{position:relative}
+.msbtn{min-width:152px;text-align:left;display:flex;justify-content:space-between;gap:8px;align-items:center}
+.msp{position:absolute;z-index:40;top:calc(100% + 4px);left:0;min-width:212px;max-height:250px;overflow:auto;
+  background:var(--card);border:1px solid var(--line);border-radius:3px;box-shadow:0 6px 18px rgba(19,26,38,.13);padding:7px}
+.msrow{display:flex;gap:8px;align-items:center;padding:4px 6px;font-size:13px;cursor:pointer;border-radius:2px}
+.msrow:hover{background:var(--paper)}
+.msrow input{margin:0}
+
+/* kpi */
+.kpi-l{font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.kpi-v{font-size:31px;line-height:1;font-family:var(--mono);font-variant-numeric:tabular-nums;font-weight:500;letter-spacing:-.03em}
+.kpi-d{font-size:11.5px;color:var(--muted);margin-top:8px;display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+.delta{font-family:var(--mono);font-size:11px;padding:1px 5px;border-radius:2px}
+.up{background:var(--route-bg);color:var(--route)}
+.down{background:var(--stale-bg);color:var(--stale)}
+.flat{background:var(--noise-bg);color:var(--noise)}
+.nn{font-family:var(--mono);font-size:11px;color:var(--faint)}
+
+/* pills */
+.pill{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.03em;padding:2px 6px;border-radius:2px;white-space:nowrap}
+.p-fixed{background:var(--route-bg);color:var(--route)}
+.p-noissue{background:var(--noise-bg);color:var(--noise)}
+.p-adhoc,.p-waiting{background:var(--hold-bg);color:var(--hold)}
+.p-new,.p-clarify{background:var(--stale-bg);color:var(--stale)}
+.p-other{background:var(--noise-bg);color:var(--noise)}
+.key{font-family:var(--mono);font-size:11px;color:var(--muted);display:inline-flex;align-items:center;gap:5px}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+/* table */
+table{width:100%;border-collapse:collapse;font-size:13.5px}
+th{text-align:left;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:400;padding:0 9px 8px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+td{padding:8px 9px 8px 0;border-bottom:1px solid var(--line2);vertical-align:top}
+tr[data-row]:hover{background:#FAFBFC}
+.num{text-align:right;padding-right:0;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.sortable{cursor:pointer;user-select:none}
+.sortable:hover{color:var(--ink)}
+
+/* upload + notices */
+.drop{border:1.5px dashed var(--line);border-radius:4px;padding:26px 22px;text-align:center;background:var(--card)}
+.drop.over{border-color:var(--route);background:var(--route-bg)}
+.btn{background:var(--ink);color:#fff;border:1px solid var(--ink);border-radius:2px;padding:8px 15px;cursor:pointer;font-size:13.5px}
+.btn.ghost{background:none;color:var(--ink)}
+.btn:hover{opacity:.88}
+.note{border-left:2px solid var(--line);padding:1px 0 1px 12px;font-size:12.5px;color:var(--muted)}
+.note.warn{border-color:var(--hold)}
+.note.bad{border-color:var(--stale)}
+.note.ok{border-color:var(--route)}
+.empty{font-size:12.5px;color:var(--faint);font-style:normal}
+
+@media (max-width:760px){
+  .wrap,.mast-in,.ctl-in{padding-left:15px;padding-right:15px}
+  .kpi-v{font-size:26px}
+  .ctl{position:static}
+}
+@media print{.mast,.ctl,.noprint{display:none}body{background:#fff}.sheet{break-inside:avoid}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="mast">
+  <div class="mast-in">
+    <div>
+      <div class="eyebrow">Customer support</div>
+      <h1>Ticket review</h1>
+    </div>
+    <div class="right">
+      <div class="viewtabs" role="tablist" aria-label="View">
+        <button class="vt" role="tab" data-view="dash" aria-selected="true">Dashboard</button>
+        <button class="vt" role="tab" data-view="cmp" aria-selected="false">Comparison</button>
+        <button class="vt" role="tab" data-view="data" aria-selected="false">Data</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="ctl" id="ctl" hidden></div>
+<main class="wrap" id="main"></main>
+<script>
+/* ---------- utils ---------- */
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const med=a=>{const s=a.filter(n=>n!=null&&!isNaN(n)).sort((x,y)=>x-y);if(!s.length)return null;
+  return s.length%2?s[(s.length-1)/2]:(s[s.length/2-1]+s[s.length/2])/2};
+const r1=n=>n==null||isNaN(n)?'\u2014':String(Math.round(n*10)/10);
+const iso=d=>d?d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'):null;
+const D=s=>{if(!s)return null;const m=/^(\d{4})-(\d{2})-(\d{2})/.exec(s);return m?new Date(+m[1],+m[2]-1,+m[3]):null};
+const dfmt=s=>{const d=D(s);return d?d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'2-digit'}):'\u2014'};
+const dspan=(a,b)=>Math.round((D(b)-D(a))/86400000);
+const titleize=s=>String(s).replace(/[_\-]+/g,' ').replace(/\s+/g,' ').trim().replace(/^./,c=>c.toUpperCase());
+const dl=(name,text,mime)=>{const b=new Blob([text],{type:mime||'application/json'}),u=URL.createObjectURL(b),
+  a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),1500)};
+
+/* ---------- CSV: character-level, quote aware, embedded newlines ---------- */
+function parseCSV(text){
+  const rows=[];let row=[],cell='',q=false;
+  text=text.replace(/^\uFEFF/,'').replace(/\r\n?/g,'\n');
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'){ if(text[i+1]==='"'){cell+='"';i++} else q=false } else cell+=c }
+    else if(c==='"') q=true;
+    else if(c===','){row.push(cell);cell=''}
+    else if(c==='\n'){row.push(cell);rows.push(row);row=[];cell=''}
+    else cell+=c;
+  }
+  row.push(cell);rows.push(row);
+  return rows.filter((r,i)=>i===0||r.some(c=>c!==''));
+}
+
+/* ---------- date format detection ---------- */
+const MON={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+const yr4=y=>{y=+y;return y>=100?y:(y<70?2000+y:1900+y)};
+const CANDS=[
+  {id:'dd/MMM/yy',re:/^(\d{1,2})\/([A-Za-z]{3,})\/(\d{2,4})(?:[ ,]+(\d{1,2}):(\d{2}))?(?:\s*([AaPp])\.?[Mm])?/,
+   f:m=>MON[m[2].slice(0,3).toLowerCase()]==null?null:[yr4(m[3]),MON[m[2].slice(0,3).toLowerCase()],+m[1],hr(m[4],m[6]),+(m[5]||0)]},
+  {id:'ISO',re:/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ](\d{1,2}):(\d{2}))?/,f:m=>[+m[1],+m[2]-1,+m[3],+(m[4]||0),+(m[5]||0)]},
+  {id:'dd.mm.yyyy',re:/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})(?:[ ,]+(\d{1,2}):(\d{2}))?/,f:m=>[yr4(m[3]),+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0)]},
+  {id:'d/m/y',re:/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:[ ,]+(\d{1,2}):(\d{2}))?(?:\s*([AaPp])\.?[Mm])?/,
+   f:m=>[yr4(m[3]),+m[2]-1,+m[1],hr(m[4],m[6]),+(m[5]||0)],numeric:true},
+  {id:'m/d/y',re:/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:[ ,]+(\d{1,2}):(\d{2}))?(?:\s*([AaPp])\.?[Mm])?/,
+   f:m=>[yr4(m[3]),+m[1]-1,+m[2],hr(m[4],m[6]),+(m[5]||0)],numeric:true}];
+function hr(h,ap){h=+(h||0);if(!ap)return h;const p=/p/i.test(ap);if(p&&h<12)h+=12;if(!p&&h===12)h=0;return h}
+
+function detectDate(values){
+  const vals=values.filter(v=>v&&v.trim());
+  if(!vals.length) return {parse:()=>null,fmt:'none',n:0};
+  let best=null;
+  for(const c of CANDS){
+    let ok=0;
+    for(const v of vals){const m=c.re.exec(v.trim());if(m&&c.f(m))ok++}
+    if(!best||ok>best.ok) best={c,ok};
+  }
+  let chosen=best.c, note=null;
+  if(chosen.numeric){
+    let a=0,b=0;
+    for(const v of vals){const m=/^(\d{1,2})\/(\d{1,2})\//.exec(v.trim());if(m){if(+m[1]>12)a++;if(+m[2]>12)b++}}
+    if(a&&!b) chosen=CANDS.find(x=>x.id==='d/m/y');
+    else if(b&&!a) chosen=CANDS.find(x=>x.id==='m/d/y');
+    else if(!a&&!b) note='Numeric dates are ambiguous; read as day/month.';
+  }
+  const parse=v=>{
+    if(!v||!v.trim())return null;
+    const m=chosen.re.exec(v.trim());if(!m)return null;
+    const p=chosen.f(m);if(!p)return null;
+    const d=new Date(p[0],p[1],p[2],p[3]||0,p[4]||0);
+    return isNaN(d)?null:d;
+  };
+  return {parse,fmt:chosen.id,n:best.ok,total:vals.length,note};
+}
+
+/* ---------- Jira export -> tickets ---------- */
+const FIELDS={
+  key:['issue key','key','issue id','issue_key'],
+  summary:['summary','title'],
+  status:['status'],
+  labels:['labels','label'],
+  created:['created','created date'],
+  resolved:['resolved','resolution date','resolutiondate'],
+  due:['due date','duedate'],
+  reporter:['reporter'],
+  assignee:['assignee'],
+  priority:['priority'],
+  updated:['updated'],
+  firstreply:['custom field ([chart] date of first response)','date of first response','[chart] date of first response']
+};
+const norm=s=>String(s||'').replace(/\s+/g,' ').trim().toLowerCase();
+/* Teams come from the Jira "Labels" column. Only the names below get their own
+   group; every other label, and any ticket with no label, falls under "Other" so
+   no ticket is ever dropped from a count. Edit this line to change the teams. */
+const TEAMS=['App','Backoffice','Sequencing'];
+const OTHER='Other';
+const TERMINAL=['solved','misunderstanding / no issue','ad-hoc cases','done','closed','resolved'];
+const OCMAP=[[/misunderstanding|no issue/i,'noissue'],[/solved|^done$|^closed$/i,'fixed'],[/ad-?hoc/i,'adhoc'],
+  [/confirmed|waiting/i,'waiting'],[/unprocessed|to.?do|new|open|backlog/i,'new'],[/clarif|pending/i,'clarify']];
+const OCL={fixed:'Fixed',noissue:'No issue',adhoc:'Ad-hoc',waiting:'Waiting for fix',new:'To do',clarify:'Clarifying',other:'Other'};
+const OCC={fixed:'#0E7C86',noissue:'#7C8593',adhoc:'#B0700B',waiting:'#B0700B',new:'#A63E34',clarify:'#A63E34',other:'#98A0AC'};
+function classify(st){for(const[re,v]of OCMAP)if(re.test(st||''))return v;return 'other'}
+const isTerminal=st=>TERMINAL.includes(norm(st));
+
+function buildJira(text){
+  const warn=[],rows=parseCSV(text);
+  if(rows.length<2) return {error:'That file has no data rows.'};
+  const hdr=rows[0].map(norm);
+  const idx={};                                  // name -> ALL indices (duplicate headers)
+  hdr.forEach((h,i)=>{if(h){(idx[h]=idx[h]||[]).push(i)}});
+  const find=names=>{for(const n of names){if(idx[n])return idx[n]}return null};
+  const at={};for(const f in FIELDS) at[f]=find(FIELDS[f]);
+  const missReq=['key','status','created'].filter(f=>!at[f]);
+  if(missReq.length) return {error:'This does not look like a Jira export. Missing required column'+
+    (missReq.length>1?'s':'')+': '+missReq.map(f=>FIELDS[f][0]).join(', ')+'.'};
+
+  const width=hdr.length;
+  const body=rows.slice(1).map(r=>r.length<width?r.concat(Array(width-r.length).fill('')):r);
+  const col=(r,f)=>at[f]?(r[at[f][0]]||'').trim():'';
+  const all=(r,f)=>at[f]?at[f].map(i=>(r[i]||'').trim()).filter(Boolean):[];
+
+  const dp={};
+  for(const f of ['created','resolved','due','updated']) if(at[f]) dp[f]=detectDate(body.map(r=>col(r,f)));
+  if(at.firstreply) dp.firstreply=detectDate(body.map(r=>col(r,'firstreply')));
+
+  const optMissing=['resolved','labels','due','reporter','assignee','firstreply'].filter(f=>!at[f]);
+  const seen={},out=[];
+  for(const r of body){
+    const k=col(r,'key');if(!k)continue;
+    const created=dp.created?dp.created.parse(col(r,'created')):null;
+    const resolved=dp.resolved?dp.resolved.parse(col(r,'resolved')):null;
+    const updated=dp.updated?dp.updated.parse(col(r,'updated')):null;
+    const fr0=dp.firstreply?dp.firstreply.parse(col(r,'firstreply')):null;
+    const st=col(r,'status');
+    const labels=all(r,'labels');
+    const t={k,s:col(r,'summary'),st,oc:classify(st),
+      labels:labels.length?labels:['Unlabelled'],lb:(labels[0]||'Unlabelled'),
+      teams:(m=>m.length?m:[OTHER])(labels.map(x=>TEAMS.find(T=>norm(T)===norm(x))).filter(Boolean)),
+      cr:iso(created),rs:iso(resolved),du:iso(dp.due?dp.due.parse(col(r,'due')):null),up:iso(updated),
+      rp:col(r,'reporter')||'Unknown',ag:col(r,'assignee')||'Unassigned',
+      pr:(v=>v&&v.toLowerCase()!=='none'?v:null)(col(r,'priority')),
+      fr:(fr0&&created)?Math.round((fr0-created)/36e5*10)/10:null,
+      d:(resolved&&created)?Math.round((resolved-created)/864e5*10)/10:null,
+      _upt:updated?+updated:0};
+    t.cf = isTerminal(st)&&!t.rs ? 'closed status but no resolution date'
+         : (!isTerminal(st)&&t.rs ? 'resolution date but status still open' : null);
+    if(seen[k]!==undefined){                       // duplicate key: keep latest Updated
+      const p=out[seen[k]];
+      if(t._upt>=p._upt) out[seen[k]]=t;
+      warn.push({lvl:'warn',msg:'Duplicate ticket key '+k+' — kept the row with the later Updated value.'});
+    } else {seen[k]=out.length;out.push(t)}
+  }
+  if(!out.length) return {error:'No ticket rows could be read from that file.'};
+
+  // First-reply timestamps are often stored in UTC while Created is rendered in local time,
+  // which makes replies appear to precede their own ticket. Infer the offset rather than assume one.
+  let frNote=null;
+  const raws=out.map(t=>t.fr).filter(v=>v!=null);
+  if(raws.length){
+    const mn=Math.min(...raws);
+    if(mn<0&&mn>=-14){
+      const off=Math.ceil(-mn*4)/4;
+      out.forEach(t=>{if(t.fr!=null)t.fr=Math.round((t.fr+off)*10)/10});
+      frNote={lvl:'warn',msg:raws.filter(v=>v<0).length+' of '+raws.length+' first-reply times fell before their ticket was created, '+
+        'which is a clock offset rather than real data. Shifted every value by +'+off+' hours to correct it.'};
+    } else if(mn<-14){
+      out.forEach(t=>{if(t.fr!=null&&t.fr<0)t.fr=null});
+      frNote={lvl:'bad',msg:'Some first-reply times fall more than 14 hours before their ticket was created, which is too large to be a clock offset. Those values were discarded.'};
+    }
+  }
+
+  const info=[];
+  info.push({lvl:'ok',msg:out.length+' tickets read from '+body.length+' rows, '+Object.keys(idx).length+' distinct columns.'});
+  for(const f in dp){const p=dp[f];
+    if(p.total&&p.n<p.total) warn.push({lvl:'warn',msg:'“'+FIELDS[f][0]+'”: '+(p.total-p.n)+' of '+p.total+' values did not match the '+p.fmt+' format and were left blank.'});
+    if(p.note) warn.push({lvl:'warn',msg:'“'+FIELDS[f][0]+'”: '+p.note});
+  }
+  if(dp.created) info.push({lvl:'ok',msg:'Dates read as '+dp.created.fmt+'.'});
+  if(frNote) warn.push(frNote);
+  if(optMissing.length) warn.push({lvl:'warn',msg:'Not in this export: '+optMissing.map(f=>FIELDS[f][0]).join(', ')+
+    '. Panels that need them are hidden.'});
+  const dupCols=Object.entries(idx).filter(([,v])=>v.length>1);
+  if(dupCols.length) info.push({lvl:'ok',msg:dupCols.length+' column name'+(dupCols.length>1?'s':'')+' repeat in the header (e.g. '+
+    dupCols.sort((a,b)=>b[1].length-a[1].length)[0][0]+' \u00d7'+dupCols[0][1].length+'); all occurrences were collected.'});
+  const unknown=[...new Set(out.filter(t=>t.oc==='other').map(t=>t.st))];
+  if(unknown.length) warn.push({lvl:'warn',msg:'Unrecognised status'+(unknown.length>1?'es':'')+': '+unknown.join(', ')+
+    '. Counted as open and grouped under Other.'});
+  return {tickets:out,notes:info.concat(warn),fields:at,dates:dp};
+}
+</script>
+<script>
+/* ---------- summary store: field-level merge, freeze, export ---------- */
+const KEYNAMES=['ticket_key','ticketkey','key','issue_key','issuekey','ticket'];
+const FILLER=/^(not (explicitly )?(stated|documented|specified|mentioned|noted|identified|available|found|detailed|provided|clear)|no (further )?(information|details|detail|documentation|root cause)|n\/?a|none|unknown|tbd|not applicable)\b/i;
+const PIIPAT=[[ 'email address',/[\w.\-]+@[\w\-]+\.[a-z]{2,}/i],['phone number',/(?:\+|00)\d{1,3}[\s\-]?\d[\d\s\-]{6,}/],
+  ['street address',/\b[A-Za-zÄÖÜäöüß\-]{3,}(?:stra(?:ss|ß)e|str\.|street|avenue|road)\s*\d+\w*/i]];
+const isEmptyish=v=>{const s=(v==null?'':String(v)).trim();return !s||FILLER.test(s)};
+
+function flattenVal(v){
+  if(v==null) return '';
+  if(Array.isArray(v)) return v.filter(x=>x!=null&&String(x).trim()).join('; ');
+  if(typeof v==='object') return Object.entries(v).map(([k,x])=>titleize(k)+': '+flattenVal(x)).join(' \u2014 ');
+  return String(v);
+}
+function readSummaryFile(text,fname){
+  let j;
+  try{ j=JSON.parse(text.replace(/^\uFEFF/,'')) }
+  catch(e){ return {error:'“'+fname+'” is not valid JSON. '+e.message} }
+  if(j&&!Array.isArray(j)&&Array.isArray(j.tickets)) j=j.tickets;
+  if(j&&!Array.isArray(j)&&typeof j==='object') j=[j];
+  if(!Array.isArray(j)) return {error:'“'+fname+'” should contain a list of tickets.'};
+  const entries=[],bad=[];
+  for(const e of j){
+    if(!e||typeof e!=='object'){bad.push('non-object entry');continue}
+    const kk=Object.keys(e).find(k=>KEYNAMES.includes(norm(k).replace(/\s/g,'_')));
+    const key=kk?String(e[kk]).trim().toUpperCase():null;
+    if(!key){bad.push('entry with no ticket key');continue}
+    let src=e;
+    const nest=Object.keys(e).find(k=>/summary$/i.test(k)&&e[k]&&typeof e[k]==='object'&&!Array.isArray(e[k]));
+    if(nest) src=e[nest];
+    const fields={};
+    for(const [k,v] of Object.entries(src)){
+      if(k===kk||KEYNAMES.includes(norm(k).replace(/\s/g,'_'))) continue;
+      if(/^frozen$/i.test(k)) continue;
+      if(src===e&&nest&&k===nest) continue;
+      const val=flattenVal(v).trim();
+      if(val) fields[k]=val;
+    }
+    entries.push({key,fields,frozen:e.frozen===true||(src!==e&&src.frozen===true)});
+  }
+  return {entries,bad,fname};
+}
+
+function ingest(res,store){
+  const log={added:0,skippedFrozen:0,changed:[],guarded:0,dupInFile:0,pii:[],fname:res.fname};
+  const seen={};
+  for(const en of res.entries){
+    if(seen[en.key]){log.dupInFile++}
+    seen[en.key]=true;
+    for(const [f,v] of Object.entries(en.fields))
+      for(const [what,re] of PIIPAT)
+        if(re.test(v)) log.pii.push({key:en.key,field:f,what});
+    const cur=store[en.key];
+    if(!cur){ store[en.key]={fields:{...en.fields},frozen:!!en.frozen,src:res.fname}; log.added++; continue }
+    if(cur.frozen){ log.skippedFrozen++; continue }
+    for(const [f,v] of Object.entries(en.fields)){
+      const old=cur.fields[f];
+      if(isEmptyish(v)&&!isEmptyish(old)){ log.guarded++; continue }
+      if((old||'')!==v){ if(!isEmptyish(old)) log.changed.push({key:en.key,field:f}); cur.fields[f]=v }
+    }
+    if(en.frozen) cur.frozen=true;
+    cur.src=res.fname;
+  }
+  return log;
+}
+
+function exportSummaries(store){
+  const out=Object.keys(store).sort((a,b)=>{
+    const na=+(a.match(/\d+/)||[0])[0], nb=+(b.match(/\d+/)||[0])[0];
+    return nb-na||a.localeCompare(b);
+  }).map(k=>({ticket_key:k,ai_summary:{...store[k].fields},frozen:true}));
+  dl('uss-summaries-frozen-'+iso(new Date())+'.json',JSON.stringify(out,null,2));
+  return out.length;
+}
+
+/* ---------- orphan classification ---------- */
+function orphans(store,tickets){
+  const have=new Set(tickets.map(t=>t.k));
+  const nums=tickets.map(t=>+(t.k.match(/\d+/)||[0])[0]).filter(Boolean);
+  const hi=nums.length?Math.max(...nums):0;
+  const stale=[],check=[];
+  for(const k of Object.keys(store)){
+    if(have.has(k)) continue;
+    const n=+(k.match(/\d+/)||[0])[0];
+    (n&&n>hi?stale:check).push(k);
+  }
+  const sortk=a=>a.sort((x,y)=>(+(y.match(/\d+/)||[0])[0])-(+(x.match(/\d+/)||[0])[0]));
+  return {stale:sortk(stale),check:sortk(check),hi};
+}
+
+/* ---------- period maths ---------- */
+function slice(tk,s,e){
+  const arrived=tk.filter(t=>t.cr&&t.cr>=s&&t.cr<=e);
+  const closed=tk.filter(t=>t.rs&&t.rs>=s&&t.rs<=e);
+  const openEnd=tk.filter(t=>t.cr&&t.cr<=e&&(!t.rs||t.rs>e));
+  const openStart=tk.filter(t=>t.cr&&t.cr<s&&(!t.rs||t.rs>=s));
+  const touched=tk.filter(t=>(t.cr&&t.cr>=s&&t.cr<=e)||(t.rs&&t.rs>=s&&t.rs<=e)||(t.cr&&t.cr<=e&&(!t.rs||t.rs>e)));
+  return {s,e,arrived,closed,openEnd,openStart,touched,
+    fixed:closed.filter(t=>t.oc==='fixed'),noissue:closed.filter(t=>t.oc==='noissue'),
+    medClose:med(closed.map(t=>t.d)),medFr:med(arrived.map(t=>t.fr)),
+    days:dspan(s,e)+1};
+}
+function prevWindow(s,e){
+  const n=dspan(s,e)+1, es=new Date(D(s).getTime()-864e5), ss=new Date(es.getTime()-(n-1)*864e5);
+  return {s:iso(ss),e:iso(es)};
+}
+function flowTabs(tk){
+  const ds=tk.map(t=>t.cr).concat(tk.map(t=>t.rs)).filter(Boolean).sort();
+  if(!ds.length) return [];
+  const lo=ds[0],hi=ds[ds.length-1],y0=+lo.slice(0,4),y1=+hi.slice(0,4);
+  const tabs=[{id:'all',label:'All time',s:lo,e:hi}];
+  for(let y=y0;y<=y1;y++){
+    const s=y+'-01-01',e=y+'-12-31';
+    const ytd=e>hi;
+    tabs.push({id:'cy'+y,label:'CY '+y+(ytd?' YTD':''),s,e:ytd?hi:e});
+  }
+  for(let y=y0-1;y<=y1;y++){
+    const s=y+'-04-01',e=(y+1)+'-03-31';
+    if(e<lo||s>hi) continue;
+    const ytd=e>hi;
+    tabs.push({id:'fy'+y,label:'FY '+String(y).slice(2)+'/'+String(y+1).slice(2)+(ytd?' YTD':''),s,e:ytd?hi:e});
+  }
+  return tabs;
+}
+</script>
+<script>
+/* ---------- monthly series ---------- */
+function monthsIn(tk,s,e){
+  const out=[];let y=+s.slice(0,4),m=+s.slice(5,7)-1;
+  const yE=+e.slice(0,4),mE=+e.slice(5,7)-1;
+  while(y<yE||(y===yE&&m<=mE)){
+    const ms=iso(new Date(y,m,1)),me=iso(new Date(y,m+1,0));
+    out.push({m:ms.slice(0,7),lb:new Date(y,m,1).toLocaleDateString('en-GB',{month:'short'}),y:String(y).slice(2),
+      f:tk.filter(t=>t.cr&&t.cr>=ms&&t.cr<=me).length,
+      c:tk.filter(t=>t.rs&&t.rs>=ms&&t.rs<=me).length,
+      o:tk.filter(t=>t.cr&&t.cr<=me&&(!t.rs||t.rs>me)).length});
+    m++;if(m>11){m=0;y++}
+  }
+  return out;
+}
+
+function statCard(label,value,extra,note){
+  return `<div class="sheet pad"><div class="kpi-l">${label}</div><div class="kpi-v">${value}</div>
+    <div class="kpi-d">${extra||''}<span>${note||''}</span></div></div>`;
+}
+function deltaTag(now,then,goodDown){
+  if(then==null||now==null||isNaN(then)||isNaN(now)) return '';
+  const d=Math.round((now-then)*10)/10;
+  if(Math.abs(d)<0.05) return '<span class="delta flat">level</span>';
+  return `<span class="delta ${(goodDown?d<0:d>0)?'up':'down'}">${d>0?'+':''}${d}</span>`;
+}
+function kpiStrip(P,PV,hasFR){
+  return `<div class="grid g5">
+    ${statCard('Arrived',P.arrived.length,deltaTag(P.arrived.length,PV.arrived.length,true),'vs '+PV.arrived.length+' in the previous '+P.days+' days')}
+    ${statCard('Closed',P.closed.length,deltaTag(P.closed.length,PV.closed.length,false),P.fixed.length+' fixed, '+P.noissue.length+' no issue')}
+    ${statCard('Open at end',P.openEnd.length,deltaTag(P.openEnd.length,PV.openEnd.length,true),'was '+PV.openEnd.length+' at the start')}
+    ${statCard('Median days to close',r1(P.medClose),deltaTag(P.medClose,PV.medClose,true),
+      '<span class="nn">n='+P.closed.filter(t=>t.d!=null).length+'</span>')}
+    ${hasFR?statCard('Median first reply',P.medFr==null?'\u2014':r1(P.medFr)+'h',deltaTag(P.medFr,PV.medFr,true),
+      '<span class="nn">n='+P.arrived.filter(t=>t.fr!=null).length+'</span>'):''}
+  </div>`;
+}
+
+/* ---------- flow chart (independent of the date selector) ---------- */
+function flowPanel(tk,tabs,active){
+  const tab=tabs.find(t=>t.id===active)||tabs[0];
+  if(!tab) return '';
+  const MO=monthsIn(tk,tab.s,tab.e);
+  const W=1130,H=236,L=32,R=8,T=14,B=38;
+  const maxB=Math.max(1,...MO.map(m=>Math.max(m.f,m.c))),maxO=Math.max(1,...MO.map(m=>m.o));
+  const step=(W-L-R)/Math.max(1,MO.length), bw=Math.max(2,Math.min(9,(step-5)/2));
+  const yB=v=>H-B-(v/maxB)*(H-B-T), yO=v=>H-B-(v/maxO)*(H-B-T);
+  let g='';
+  [0,Math.round(maxB/2),maxB].filter((v,i,a)=>a.indexOf(v)===i).forEach(v=>{
+    g+=`<line x1="${L}" y1="${yB(v)}" x2="${W-R}" y2="${yB(v)}" stroke="#EDEFF3"/>`+
+       `<text x="${L-6}" y="${yB(v)+4}" text-anchor="end" font-size="10" fill="#98A0AC" font-family="monospace">${v}</text>`});
+  MO.forEach((m,i)=>{const cx=L+step*(i+.5);
+    g+=`<rect x="${cx-bw-1}" y="${yB(m.f)}" width="${bw}" height="${H-B-yB(m.f)}" fill="#B0700B" opacity=".5" rx="1"><title>${m.m}: ${m.f} filed</title></rect>`;
+    g+=`<rect x="${cx+1}" y="${yB(m.c)}" width="${bw}" height="${H-B-yB(m.c)}" fill="#0E7C86" opacity=".5" rx="1"><title>${m.m}: ${m.c} closed</title></rect>`;
+    const showLb=MO.length<=14||i%2===0||i===MO.length-1;
+    if(showLb) g+=`<text x="${cx}" y="${H-21}" text-anchor="middle" font-size="9.5" fill="#98A0AC" font-family="monospace">${m.lb}</text>`;
+    if(m.lb==='Jan'||i===0) g+=`<text x="${cx}" y="${H-8}" text-anchor="middle" font-size="9.5" fill="#C3C2B7" font-family="monospace">'${m.y}</text>`;
+  });
+  g+=`<path d="${MO.map((m,i)=>`${i?'L':'M'}${(L+step*(i+.5)).toFixed(1)},${yO(m.o).toFixed(1)}`).join(' ')}" fill="none" stroke="#131A26" stroke-width="1.7" stroke-linejoin="round"/>`;
+  const last=MO[MO.length-1];
+  if(last) g+=`<circle cx="${(L+step*(MO.length-.5)).toFixed(1)}" cy="${yO(last.o).toFixed(1)}" r="3.6" fill="#FFF" stroke="#131A26" stroke-width="2"/>`;
+  const tot=MO.reduce((a,m)=>({f:a.f+m.f,c:a.c+m.c}),{f:0,c:0});
+  return `<div class="sheet pad">
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:13px">
+      ${tabs.map(t=>`<button class="chip" data-flow="${t.id}" aria-pressed="${t.id===tab.id}">${esc(t.label)}</button>`).join('')}
+    </div>
+    <div style="display:flex;gap:17px;flex-wrap:wrap;margin-bottom:10px;align-items:baseline">
+      <span class="key"><span class="sw" style="background:#B0700B;opacity:.6"></span>Filed</span>
+      <span class="key"><span class="sw" style="background:#0E7C86;opacity:.6"></span>Closed</span>
+      <span class="key"><svg width="17" height="8" aria-hidden="true"><line x1="0" y1="4" x2="17" y2="4" stroke="#131A26" stroke-width="1.7"/></svg>Open at month end</span>
+      <span class="nn" style="margin-left:auto">${dfmt(tab.s)} to ${dfmt(tab.e)} \u00b7 ${tot.f} filed, ${tot.c} closed</span>
+    </div>
+    <div class="scrollx"><svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:${Math.max(560,MO.length*26)}px;height:auto" role="img"
+      aria-label="Filed, closed and open ticket counts by month for ${esc(tab.label)}"><title>Filed, closed and open backlog by month</title>${g}</svg></div>
+  </div>`;
+}
+
+/* ---------- team durations (period bound) ---------- */
+function teamPanel(P){
+  const names=TEAMS.concat(OTHER).filter(n=>P.touched.some(t=>t.teams.includes(n)));
+  const lo=.02,hi=800,sp=Math.log10(hi)-Math.log10(lo);
+  const px=d=>((Math.log10(Math.max(lo,Math.min(hi,d)))-Math.log10(lo))/sp)*100;
+  const ticks=[[.02,'same day'],[1,'1d'],[7,'1w'],[30,'1m'],[90,'3m'],[365,'1y']];
+  const rows=names.map(n=>{
+    const grp=P.closed.filter(t=>t.teams.includes(n)&&t.d!=null);
+    const m=med(grp.map(t=>t.d));
+    return `<div style="display:grid;grid-template-columns:104px minmax(0,1fr) 74px;gap:0 10px;align-items:center;padding:8px 0;border-top:1px solid var(--line2)">
+      <div><div style="font-size:13.5px;font-weight:500">${esc(n)}</div>
+        <div class="nn">${grp.length} closed of ${P.touched.filter(t=>t.teams.includes(n)).length}</div></div>
+      <div style="position:relative;height:28px">
+        <div style="position:absolute;top:13px;left:0;right:0;height:1px;background:var(--line2)"></div>
+        ${grp.map(t=>`<span title="${esc(t.k)} \u00b7 ${r1(t.d)} days" style="position:absolute;top:8px;left:${px(t.d).toFixed(2)}%;width:7px;height:7px;margin-left:-3.5px;border-radius:50%;background:${OCC[t.oc]};opacity:.55"></span>`).join('')}
+        ${m!=null?`<span style="position:absolute;top:2px;left:${px(m).toFixed(2)}%;width:2px;height:19px;margin-left:-1px;background:var(--ink)"></span>`:''}
+      </div>
+      <div style="text-align:right"><span class="fig" style="font-size:14px">${m==null?'\u2014':r1(m)+'d'}</span>
+        <span class="nn" style="display:block">n=${grp.length}</span></div>
+    </div>`}).join('');
+  return `<div class="sheet pad">
+    <div style="display:grid;grid-template-columns:104px minmax(0,1fr) 74px;gap:0 10px">
+      <div></div>
+      <div style="position:relative;height:13px">${ticks.map(([v,l])=>`<span class="nn" style="position:absolute;top:0;left:${px(v).toFixed(2)}%;transform:translateX(-50%)">${l}</span>`).join('')}</div>
+      <div class="nn" style="text-align:right">median</div>
+    </div>
+    ${rows||'<p class="empty" style="padding:14px 0">No tickets closed in this period.</p>'}
+    <p style="font-size:12px;color:var(--muted);margin-top:12px">One dot per closed ticket on a log scale, coloured by outcome. The vertical rule marks the team median.</p>
+  </div>`;
+}
+
+/* ---------- outcome mix (period bound) ---------- */
+function outcomePanel(P){
+  const order=['fixed','noissue','adhoc','waiting','new','clarify','other'];
+  const names=TEAMS.concat(OTHER).filter(n=>P.touched.some(t=>t.teams.includes(n)));
+  const bar=list=>`<div style="display:flex;height:13px;border-radius:2px;overflow:hidden;gap:1px">
+      ${order.map(o=>{const n=list.filter(t=>t.oc===o).length;
+        return n?`<span title="${OCL[o]}: ${n}" style="width:${n/list.length*100}%;background:${OCC[o]}"></span>`:''}).join('')}</div>
+    <div class="nn" style="margin-top:5px">${order.map(o=>{const n=list.filter(t=>t.oc===o).length;
+      return n?OCL[o]+' '+n:''}).filter(Boolean).join(' \u00b7 ')}</div>`;
+  return `<div class="sheet pad">
+    <div style="padding-bottom:11px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+        <span style="font-size:13.5px;font-weight:500">All teams</span><span class="nn">${P.touched.length} tickets</span></div>
+      ${P.touched.length?bar(P.touched):'<p class="empty">Nothing in this period.</p>'}
+    </div>
+    ${names.map(n=>{const list=P.touched.filter(t=>t.teams.includes(n));
+      return `<div style="padding:10px 0;border-top:1px solid var(--line2)">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+          <span style="font-size:13.5px">${esc(n)}</span><span class="nn">${list.length}</span></div>
+        ${bar(list)}</div>`}).join('')}
+    <div style="display:flex;gap:13px;flex-wrap:wrap;margin-top:13px">
+      ${order.filter(o=>P.touched.some(t=>t.oc===o)).map(o=>`<span class="key"><span class="sw" style="background:${OCC[o]}"></span>${OCL[o]}</span>`).join('')}
+    </div>
+  </div>`;
+}
+</script>
+<script>
+const ST={tickets:[],sum:{},notes:[],logs:[],view:'dash',flow:'all',
+  period:null,pend:null,preset:null,ctlBuilt:false,
+  ex:{team:'all',rp:[],ag:[],geo:'all',q:'',sort:'cr',dir:-1,open:null,ms:null},
+  cmp:{as:null,ae:null,bs:null,be:null},cmpPend:{as:null,ae:null,bs:null,be:null},cmpBuilt:false,cmpRan:false,files:[]};
+const PRESETS=[['1m','Last month'],['3m','Last 3 months'],['6m','Last 6 months'],['12m','Last 12 months'],['all','All time']];
+const badRange=(a,b)=>!a||!b||a>b;
+function presetRange(k){
+  const ds=ST.tickets.map(t=>t.cr).filter(Boolean).sort(),hi=ds[ds.length-1];
+  if(k==='all') return {s:ds[0],e:hi};
+  const n={'1m':1,'3m':3,'6m':6,'12m':12}[k];
+  if(n===1){const y=+hi.slice(0,4),m=+hi.slice(5,7)-1;return {s:iso(new Date(y,m,1)),e:iso(new Date(y,m+1,0))}}
+  const x=D(hi);return {s:iso(new Date(x.getFullYear(),x.getMonth()-n,x.getDate()+1)),e:hi};
+}
+/* multi-select control: empty selection means everyone */
+function multi(id,label,vals){
+  const sel=ST.ex[id],open=ST.ex.ms===id;
+  const txt=!sel.length?'Anyone':sel.length===1?sel[0]:sel.length+' selected';
+  return `<div class="ms"><label class="lab">${label}</label>
+    <button class="chip msbtn" data-ms="${id}" aria-expanded="${open}">
+      <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:132px">${esc(txt)}</span>
+      <span aria-hidden="true" style="color:var(--faint)">\u25be</span></button>
+    ${open?`<div class="msp">
+      <button class="chip" data-msclear="${id}" style="width:100%;margin-bottom:5px">Clear selection</button>
+      ${vals.map(v=>`<label class="msrow"><input type="checkbox" data-mschk="${id}" value="${esc(v)}"${sel.includes(v)?' checked':''}>${esc(v)}</label>`).join('')}
+    </div>`:''}</div>`;
+}
+
+const geoFieldsOf=k=>{const f=(ST.sum[k]||{}).fields||{};
+  return Object.keys(f).filter(n=>/countr|tenant|region/i.test(n))};
+function geoValues(){
+  const s=new Set();
+  for(const k in ST.sum) for(const n of geoFieldsOf(k)){const v=ST.sum[k].fields[n];if(v)s.add(v.trim())}
+  return [...s].sort();
+}
+function prose(k){const e=ST.sum[k];return e&&Object.keys(e.fields).length?e:null}
+
+/* ---------- every ticket ---------- */
+function ticketRows(){
+  const P=ST.period;
+  return ST.tickets.filter(t=>{
+    const inP=(t.cr&&t.cr>=P.s&&t.cr<=P.e)||(t.rs&&t.rs>=P.s&&t.rs<=P.e)||(t.cr&&t.cr<=P.e&&(!t.rs||t.rs>P.e));
+    if(!inP) return false;
+    if(ST.ex.team!=='all'&&!t.teams.includes(ST.ex.team)) return false;
+    if(ST.ex.rp.length&&!ST.ex.rp.includes(t.rp)) return false;
+    if(ST.ex.ag.length&&!ST.ex.ag.includes(t.ag)) return false;
+    if(ST.ex.geo!=='all'){
+      const e=ST.sum[t.k];if(!e) return false;
+      const hit=geoFieldsOf(t.k).some(n=>(e.fields[n]||'').trim()===ST.ex.geo);
+      if(!hit) return false;
+    }
+    if(ST.ex.q){
+      const e=ST.sum[t.k];
+      const hay=(t.k+' '+t.s+' '+t.st+' '+t.rp+' '+t.ag+' '+t.labels.join(' ')+' '+
+        (e?Object.values(e.fields).join(' '):'')).toLowerCase();
+      if(!hay.includes(ST.ex.q.toLowerCase())) return false;
+    }
+    return true;
+  });
+}
+function ticketPanel(){
+  let rows=ticketRows();
+  const cmp={k:(a,b)=>a.k.localeCompare(b.k,undefined,{numeric:true}),s:(a,b)=>a.s.localeCompare(b.s),
+    lb:(a,b)=>a.labels[0].localeCompare(b.labels[0]),rp:(a,b)=>a.rp.localeCompare(b.rp),ag:(a,b)=>a.ag.localeCompare(b.ag),
+    cr:(a,b)=>(a.cr||'').localeCompare(b.cr||''),d:(a,b)=>(a.d==null?-1:a.d)-(b.d==null?-1:b.d),
+    fr:(a,b)=>(a.fr==null?-1:a.fr)-(b.fr==null?-1:b.fr)};
+  if(!cmp[ST.ex.sort]) ST.ex.sort='cr';
+  rows=rows.slice().sort((a,b)=>cmp[ST.ex.sort](a,b)*ST.ex.dir);
+  const ar=k=>ST.ex.sort===k?`<span style="color:var(--route)">${ST.ex.dir>0?'\u2191':'\u2193'}</span>`:'';
+  const th=(k,l,c)=>`<th class="sortable ${c||''}" data-sort="${k}">${l} ${ar(k)}</th>`;
+  const opts=(f,vals,cur)=>`<div style="display:flex;gap:5px;flex-wrap:wrap">
+    ${['all'].concat(vals).map(v=>`<button class="chip" data-f="${f}" data-v="${esc(v)}" aria-pressed="${cur===v}">${v==='all'?'All':esc(v)}</button>`).join('')}</div>`;
+  const teams=TEAMS.concat(OTHER).filter(n=>ST.tickets.some(t=>t.teams.includes(n)));
+  const reps=[...new Set(ST.tickets.map(t=>t.rp))].sort();
+  const ags=[...new Set(ST.tickets.map(t=>t.ag))].sort();
+  const geo=geoValues();
+
+  return `<div class="sheet pad" style="margin-bottom:12px">
+    <div style="display:flex;flex-wrap:wrap;gap:14px 22px;align-items:flex-end">
+      <div><label class="lab">Team</label>${opts('team',teams,ST.ex.team)}</div>
+      ${geo.length?`<div><label class="lab">Country</label>${opts('geo',geo,ST.ex.geo)}</div>`:''}
+      ${multi('rp','Reporter',reps)}
+      ${multi('ag','Assignee',ags)}
+      <div style="flex:1;min-width:230px"><label class="lab" for="q">Search</label>
+        <input type="search" id="q" value="${esc(ST.ex.q)}" placeholder="try: logged out, waypoint, sequence"></div>
+    </div>
+    <div style="border-top:1px solid var(--line2);margin:15px 0 12px"></div>
+    <div style="display:flex;gap:22px;flex-wrap:wrap">
+      ${[['Showing',rows.length+' of '+ST.tickets.length],
+        ['Open',rows.filter(t=>!t.rs).length],
+        ['Median days',r1(med(rows.map(t=>t.d)))+' <span class="nn">n='+rows.filter(t=>t.d!=null).length+'</span>']]
+        .map(([l,v])=>`<div><div class="kpi-l" style="margin-bottom:3px">${l}</div><div class="fig" style="font-size:17px">${v}</div></div>`).join('')}
+    </div></div>
+  <div class="sheet pad"><div class="scrollx"><table style="min-width:880px">
+    <thead><tr>${th('k','Ticket')}${th('s','Summary')}${th('lb','Team')}<th>Outcome</th>${th('rp','Reporter')}${th('ag','Assignee')}${th('cr','Filed')}${th('fr','1st reply','num')}</tr></thead>
+    <tbody>${rows.length?rows.map(t=>rowHtml(t)).join(''):
+      `<tr><td colspan="8" style="padding:26px 0;text-align:center;color:var(--muted);font-size:13.5px">Nothing matches. Widen the scope or clear a filter.</td></tr>`}
+    </tbody></table></div></div>`;
+}
+function rowHtml(t){
+  const p=prose(t.k),open=ST.ex.open===t.k;
+  let ex='';
+  if(open){
+    const blocks=p?Object.entries(p.fields).map(([n,v])=>`<div style="margin-bottom:13px">
+        <div class="kpi-l" style="margin-bottom:3px">${esc(titleize(n))}</div>
+        <p style="font-size:13px">${esc(v)}</p></div>`).join('')
+      :`<p class="empty">No written summary loaded for this ticket. It appears in every count and chart — only the narrative is missing. Load a summary file on the Data tab to fill it in.</p>`;
+    const rec=[['Status',t.st],['Team',t.teams.join(', ')],['Jira label',t.labels.join(', ')],['Reporter',t.rp],['Assignee',t.ag],
+      ['Filed',dfmt(t.cr)],['Closed',t.rs?dfmt(t.rs):'not closed'],['Due',t.du?dfmt(t.du):'none set'],
+      ['Priority',t.pr||'not set'],['First reply',t.fr==null?'not recorded':r1(t.fr)+' hours'],
+      ['Time to close',t.d==null?'still open':r1(t.d)+' days']];
+    ex=`<tr><td colspan="8" style="background:#FAFBFC;padding:16px 0 20px">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:22px">
+        <div style="grid-column:span 2;min-width:0">
+          <div class="eyebrow" style="margin-bottom:9px">Written summary${p&&p.frozen?' \u00b7 frozen':''}</div>${blocks}</div>
+        <div><div class="eyebrow" style="margin-bottom:9px">Jira record</div>
+          <table style="font-size:12.5px"><tbody>${rec.map(([a,b])=>
+            `<tr><td style="color:var(--muted);border:0;padding:2px 12px 2px 0;white-space:nowrap">${a}</td><td style="border:0;padding:2px 0">${esc(b)}</td></tr>`).join('')}</tbody></table>
+          ${t.du&&t.rs&&t.rs>t.du?`<p style="font-size:11.5px;color:var(--stale);margin-top:7px">Closed ${dspan(t.du,t.rs)} days after the due date.</p>`:''}
+          ${t.cf?`<p style="font-size:11.5px;color:var(--stale);margin-top:7px">Record conflict: ${esc(t.cf)}.</p>`:''}
+        </div></div></td></tr>`;
+  }
+  return `<tr data-row="${esc(t.k)}" style="cursor:pointer">
+    <td class="mono" style="white-space:nowrap">${esc(t.k)}</td>
+    <td>${esc(t.s)}${t.cf?' <span class="pill p-new">conflict</span>':''}${!t.rs?' <span class="pill p-waiting">open</span>':''}${p?'':' <span class="nn">no summary</span>'}</td>
+    <td>${esc(t.teams.join(', '))}</td>
+    <td><span class="pill p-${t.oc}">${OCL[t.oc]}</span></td>
+    <td style="color:var(--muted)">${esc(t.rp)}</td>
+    <td style="color:var(--muted)">${esc(t.ag)}</td>
+    <td class="mono" style="font-size:12.5px;color:var(--muted);white-space:nowrap">${dfmt(t.cr)}</td>
+    <td class="num" style="font-size:12.5px;color:var(--muted)">${t.fr==null?'\u2014':r1(t.fr)+'h'}</td></tr>${ex}`;
+}
+</script>
+<script>
+/* ---------- comparison ---------- */
+function cmpCtlHtml(){
+  const c=ST.cmpPend;
+  const inp=(id,v,lab)=>`<div><label class="lab" for="${id}">${lab}</label><input type="date" id="${id}" data-cmp="${id}" value="${v||''}"></div>`;
+  return `<div class="sheet pad" style="margin-bottom:12px">
+    <div style="display:flex;flex-wrap:wrap;gap:16px 26px;align-items:flex-end">
+      <div><div class="eyebrow" style="margin-bottom:7px">Period A</div>
+        <div style="display:flex;gap:9px;align-items:flex-end">${inp('as',c.as,'From')}${inp('ae',c.ae,'To')}
+          <div style="padding-bottom:7px"><span class="daycount" id="dcA"></span></div></div></div>
+      <div><div class="eyebrow" style="margin-bottom:7px">Period B</div>
+        <div style="display:flex;gap:9px;align-items:flex-end">${inp('bs',c.bs,'From')}${inp('be',c.be,'To')}
+          <div style="padding-bottom:7px"><span class="daycount" id="dcB"></span></div></div></div>
+      <div class="applybar" style="padding-bottom:1px">
+        <button class="btn sm" id="cmpApply">Compare</button><span class="dirty" id="cmpDirty"></span></div>
+    </div></div><div id="cmpOut"></div>`;
+}
+function syncCmpCtl(){
+  const c=ST.cmpPend,A=badRange(c.as,c.ae),B=badRange(c.bs,c.be);
+  const set=(id,s,e,bad)=>{const el=document.getElementById(id);if(!el)return;
+    el.textContent=bad?(s&&e?'from date must be on or before the to date':'pick both dates'):(dspan(s,e)+1)+' days';
+    el.className='daycount'+(bad?' bad':'')};
+  set('dcA',c.as,c.ae,A);set('dcB',c.bs,c.be,B);
+  [['as',c.as,A],['ae',c.ae,A],['bs',c.bs,B],['be',c.be,B]].forEach(([id,v,bad])=>{
+    const el=document.getElementById(id);if(el){el.classList.toggle('bad',bad&&!!v);if(el.value!==(v||''))el.value=v||''}});
+  const dirty=['as','ae','bs','be'].some(k=>ST.cmpPend[k]!==ST.cmp[k]);
+  const ap=document.getElementById('cmpApply');if(ap)ap.disabled=A||B||(ST.cmpRan&&!dirty);
+  const dz=document.getElementById('cmpDirty');
+  if(dz)dz.textContent=A||B?'':(!ST.cmpRan?'press Compare to generate':(dirty?'not applied yet':''));
+}
+function cmpOut(){
+  const c=ST.cmp,el=document.getElementById('cmpOut');if(!el)return;
+  if(!ST.cmpRan){
+    el.innerHTML='<div class="sheet pad"><p class="empty">Pick a start and end date for each period, then press Compare. The periods can be any length and may overlap.</p></div>';return}
+  if(badRange(c.as,c.ae)||badRange(c.bs,c.be)){
+    el.innerHTML='<div class="sheet pad"><p class="empty">Choose a start and end date for both periods, then press Compare. The periods can be any length and may overlap.</p></div>';return}
+  const A=slice(ST.tickets,c.as,c.ae),B=slice(ST.tickets,c.bs,c.be);
+  const hasFR=ST.tickets.some(t=>t.fr!=null);
+  const teams=TEAMS.concat(OTHER).filter(n=>ST.tickets.some(t=>t.teams.includes(n)));
+  const rowsMain=[
+    ['Tickets arrived',A.arrived.length,B.arrived.length,0],
+    ['Tickets closed',A.closed.length,B.closed.length,0],
+    ['&nbsp;&nbsp;of which fixed',A.fixed.length,B.fixed.length,0],
+    ['&nbsp;&nbsp;of which no issue',A.noissue.length,B.noissue.length,0],
+    ['Open at period end',A.openEnd.length,B.openEnd.length,0],
+    ['Median days to close',A.medClose,B.medClose,1,A.closed.filter(t=>t.d!=null).length,B.closed.filter(t=>t.d!=null).length]];
+  if(hasFR) rowsMain.push(['Median first reply (hours)',A.medFr,B.medFr,1,A.arrived.filter(t=>t.fr!=null).length,B.arrived.filter(t=>t.fr!=null).length]);
+  const cell=(v,dec,n)=>`<td class="num">${v==null?'\u2014':(dec?r1(v):v)}${n!=null?' <span class="nn">n='+n+'</span>':''}</td>`;
+  const diff=(a,b,dec)=>{if(a==null||b==null)return '<td class="num">\u2014</td>';
+    const d=Math.round((a-b)*10)/10;return `<td class="num" style="color:${d===0?'var(--muted)':(d>0?'var(--route)':'var(--stale)')}">${d>0?'+':''}${dec?r1(d):d}</td>`};
+  const tbl=(title,rows)=>`<table style="margin-bottom:4px"><thead><tr><th>${title}</th>
+      <th class="num">Period A</th><th class="num">Period B</th><th class="num">A \u2212 B</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr><td>${r[0]}</td>${cell(r[1],r[3],r[4])}${cell(r[2],r[3],r[5])}${diff(r[1],r[2],r[3])}</tr>`).join('')}</tbody></table>`;
+  const teamRows=teams.map(n=>{
+    const ga=A.closed.filter(t=>t.teams.includes(n)&&t.d!=null),gb=B.closed.filter(t=>t.teams.includes(n)&&t.d!=null);
+    return [esc(n),med(ga.map(t=>t.d)),med(gb.map(t=>t.d)),1,ga.length,gb.length]});
+  const mixRows=['fixed','noissue','adhoc','waiting','new','clarify','other']
+    .filter(o=>A.touched.some(t=>t.oc===o)||B.touched.some(t=>t.oc===o))
+    .map(o=>[OCL[o],A.touched.filter(t=>t.oc===o).length,B.touched.filter(t=>t.oc===o).length,0]);
+  el.innerHTML=`<p class="nn" style="margin-bottom:11px">A: ${dfmt(c.as)} to ${dfmt(c.ae)} (${dspan(c.as,c.ae)+1} days) \u00b7 B: ${dfmt(c.bs)} to ${dfmt(c.be)} (${dspan(c.bs,c.be)+1} days)</p>
+    <div class="sheet pad" style="margin-bottom:12px">${tbl('Headline',rowsMain)}</div>
+    <div class="grid g2">
+      <div class="sheet pad"><div class="eyebrow" style="margin-bottom:11px">Median days to close, by team</div>${tbl('Team',teamRows)}</div>
+      <div class="sheet pad"><div class="eyebrow" style="margin-bottom:11px">Tickets in play, by outcome</div>${tbl('Outcome',mixRows)}</div>
+    </div>`;
+}
+/* ---------- data tab ---------- */
+function dataPanel(){
+  const n=ST.tickets.length,cov=ST.tickets.filter(t=>prose(t.k)).length;
+  const orp=n?orphans(ST.sum,ST.tickets):{stale:[],check:[],hi:0};
+  const noteHtml=x=>`<p class="note ${x.lvl==='ok'?'ok':x.lvl==='bad'?'bad':'warn'}" style="margin-bottom:7px">${x.msg}</p>`;
+  const pii=ST.logs.flatMap(l=>l.pii||[]);
+  const changed=ST.logs.flatMap(l=>l.changed||[]);
+  const frozenN=Object.values(ST.sum).filter(e=>e.frozen).length;
+  return `<div class="grid g2" style="margin-bottom:12px">
+    <div class="sheet pad">
+      <div class="eyebrow" style="margin-bottom:11px">Load files</div>
+      <div class="drop" id="drop">
+        <p style="font-size:13.5px;margin-bottom:5px">Drop the Jira CSV export and any summary JSON files here</p>
+        <p class="empty" style="margin-bottom:13px">Nothing is uploaded anywhere. Files are read in this browser tab and disappear when you close it.</p>
+        <button class="btn" id="pick">Choose files</button>
+        <input type="file" id="file" multiple accept=".csv,.json,text/csv,application/json" style="display:none">
+      </div>
+      ${ST.files.length?`<p class="nn" style="margin-top:11px">Loaded: ${ST.files.map(esc).join(', ')}</p>`:''}
+    </div>
+    <div class="sheet pad">
+      <div class="eyebrow" style="margin-bottom:11px">Written summaries</div>
+      ${n?`<div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:13px">
+        ${[['Tickets',n],['With a summary',cov],['Frozen',frozenN]].map(([l,v])=>
+          `<div><div class="kpi-l" style="margin-bottom:3px">${l}</div><div class="fig" style="font-size:19px">${v}</div></div>`).join('')}</div>
+        <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px">Exporting writes every loaded summary to one JSON file with each ticket marked frozen, so a later upload can never overwrite it. Feed that file back in next month alongside the new one.</p>
+        <button class="btn ghost" id="expBtn"${Object.keys(ST.sum).length?'':' disabled'}>Export frozen summaries</button>`
+       :'<p class="empty">Load a Jira export first.</p>'}
+    </div></div>
+  ${ST.notes.length?`<div class="sheet pad" style="margin-bottom:12px">
+    <div class="eyebrow" style="margin-bottom:11px">What was read</div>${ST.notes.map(noteHtml).join('')}</div>`:''}
+  ${(orp.stale.length||orp.check.length||pii.length||changed.length||ST.logs.some(l=>l.dupInFile))?`
+  <div class="sheet pad">
+    <div class="eyebrow" style="margin-bottom:11px">Checks</div>
+    ${orp.stale.length?`<p class="note warn" style="margin-bottom:9px">${orp.stale.length} summar${orp.stale.length>1?'ies':'y'} for tickets newer than anything in the Jira export (${orp.stale.slice(0,8).map(esc).join(', ')}${orp.stale.length>8?'\u2026':''}). The export is older than the summary file — take a fresh one. These tickets are left out of the dashboard.</p>`:''}
+    ${orp.check.length?`<p class="note bad" style="margin-bottom:9px">${orp.check.length} summar${orp.check.length>1?'ies':'y'} name a ticket that falls inside the Jira export's range but is not in it: ${orp.check.map(esc).join(', ')}. Worth a human look — the ticket may have been deleted, moved to another project, excluded by the export filter, or invented by the model. Left out of the dashboard.</p>`:''}
+    ${pii.length?`<p class="note bad" style="margin-bottom:9px">${pii.length} summary field${pii.length>1?'s':''} look like they contain personal data: ${[...new Set(pii.map(p=>p.key+' ('+p.what+')'))].slice(0,6).map(esc).join(', ')}${pii.length>6?'\u2026':''}. Shown as loaded — worth removing at the source.</p>`:''}
+    ${changed.length?`<p class="note warn" style="margin-bottom:9px">${changed.length} existing summary field${changed.length>1?'s were':' was'} rewritten by a newer file: ${[...new Set(changed.map(c=>c.key))].slice(0,10).map(esc).join(', ')}${changed.length>10?'\u2026':''}. Empty or non-answer values never replace real text, and frozen tickets are never touched.</p>`:''}
+    ${ST.logs.filter(l=>l.dupInFile).map(l=>`<p class="note warn" style="margin-bottom:9px">${esc(l.fname)} lists ${l.dupInFile} ticket key${l.dupInFile>1?'s':''} more than once; the last entry won.</p>`).join('')}
+    ${ST.logs.filter(l=>l.skippedFrozen).map(l=>`<p class="note ok" style="margin-bottom:9px">${esc(l.fname)}: ${l.skippedFrozen} ticket${l.skippedFrozen>1?'s':''} skipped because they are frozen.</p>`).join('')}
+  </div>`:''}`;
+}
+
+/* ---------- empty state ---------- */
+function emptyState(){
+  return `<div class="sheet pad" style="max-width:640px;margin:36px auto">
+    <div class="eyebrow" style="margin-bottom:9px">Nothing loaded yet</div>
+    <h2 style="font-size:19px;margin-bottom:11px">Two files, one of them optional</h2>
+    <p style="font-size:13.5px;color:var(--muted);margin-bottom:16px">This page holds no data of its own. Load the files and everything is built in your browser — nothing is sent anywhere, and closing the tab clears it.</p>
+    <div style="display:grid;gap:13px;margin-bottom:19px">
+      <div class="note ok"><b style="color:var(--ink);font-weight:600">Jira CSV export</b> — required. Provides every count, date, chart and the ticket list. Any column selection works; unrecognised columns are ignored.</div>
+      <div class="note warn"><b style="color:var(--ink);font-weight:600">Summary JSON</b> — optional. Adds the written narrative to each ticket. Load as many as you have; they merge by ticket key.</div>
+    </div>
+    <div class="drop" id="drop">
+      <button class="btn" id="pick">Choose files</button>
+      <input type="file" id="file" multiple accept=".csv,.json,text/csv,application/json" style="display:none">
+      <p class="empty" style="margin-top:11px">or drag them onto this box</p>
+    </div>
+  </div>`;
+}
+
+/* ---------- controls + render ---------- */
+function ctlHtml(){
+  const P=ST.pend,span=ST.tickets.map(t=>t.cr).filter(Boolean).sort();
+  return `<div class="ctl-in">
+    <div><label class="lab" for="ps">Period from</label><input type="date" id="ps" value="${P.s}" min="${span[0]||''}"></div>
+    <div><label class="lab" for="pe">to</label><input type="date" id="pe" value="${P.e}"></div>
+    <div style="padding-bottom:7px"><span class="daycount" id="dc"></span></div>
+    <div class="applybar" style="padding-bottom:1px">
+      <button class="btn sm" id="apply">Apply</button>
+      <span class="dirty" id="dirty"></span>
+    </div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;padding-bottom:1px" id="presets">
+      ${PRESETS.map(([k,l])=>`<button class="chip" data-quick="${k}" aria-pressed="false">${l}</button>`).join('')}
+    </div>
+    <div class="right" style="margin-left:auto;padding-bottom:5px"><span class="nn" id="cov"></span></div></div>`;
+}
+function syncCtl(){
+  const dc=document.getElementById('dc');if(!dc)return;
+  const P=ST.pend,bad=badRange(P.s,P.e);
+  dc.textContent=bad?'from date must be on or before the to date':(dspan(P.s,P.e)+1)+' days';
+  dc.className='daycount'+(bad?' bad':'');
+  for(const id of ['ps','pe']){const el=document.getElementById(id);
+    if(el){el.classList.toggle('bad',bad); const v=id==='ps'?P.s:P.e; if(el.value!==v) el.value=v||''}}
+  const dirty=P.s!==ST.period.s||P.e!==ST.period.e;
+  const ap=document.getElementById('apply');if(ap)ap.disabled=bad||!dirty;
+  const dz=document.getElementById('dirty');if(dz)dz.textContent=dirty&&!bad?'not applied yet':'';
+  document.querySelectorAll('[data-quick]').forEach(b=>b.setAttribute('aria-pressed',String(ST.preset===b.dataset.quick)));
+  const cov=document.getElementById('cov');
+  if(cov)cov.textContent=ST.tickets.length+' tickets \u00b7 '+ST.tickets.filter(t=>prose(t.k)).length+' with a written summary';
+}
+function controls(){
+  const el=document.getElementById('ctl');
+  if(ST.view!=='dash'||!ST.tickets.length){el.hidden=true;ST.ctlBuilt=false;return}
+  el.hidden=false;
+  if(!ST.ctlBuilt){el.innerHTML=ctlHtml();ST.ctlBuilt=true}
+  syncCtl();
+}
+function render(){
+  document.querySelectorAll('[data-view]').forEach(b=>b.setAttribute('aria-selected',b.dataset.view===ST.view));
+  const main=document.getElementById('main');
+  if(ST.view!=='cmp') ST.cmpBuilt=false;
+  controls();
+  if(!ST.tickets.length&&ST.view!=='data'){ main.innerHTML=emptyState(); wireFiles(); return }
+  if(ST.view==='data'){ main.innerHTML=dataPanel(); wireFiles(); return }
+  if(ST.view==='cmp'){
+    if(!ST.cmpBuilt){main.innerHTML=cmpCtlHtml();ST.cmpBuilt=true}
+    syncCmpCtl();cmpOut();return}
+  const P=slice(ST.tickets,ST.period.s,ST.period.e);
+  const pv=prevWindow(ST.period.s,ST.period.e), PV=slice(ST.tickets,pv.s,pv.e);
+  const hasFR=ST.tickets.some(t=>t.fr!=null);
+  const tabs=flowTabs(ST.tickets);
+  main.innerHTML=
+    kpiStrip(P,PV,hasFR)+
+    `<div class="sec"><div class="sec-h"><h2>Flow over time</h2><p>Independent of the dates above — pick a window here.</p></div>${flowPanel(ST.tickets,tabs,ST.flow)}</div>`+
+    `<div class="sec"><div class="grid g2">
+      <div><div class="sec-h"><h2>How long tickets take, by team</h2></div>${teamPanel(P)}</div>
+      <div><div class="sec-h"><h2>What happened to them</h2></div>${outcomePanel(P)}</div></div></div>`+
+    `<div class="sec"><div class="sec-h"><h2>Every ticket</h2><p>Click any row for its written summary and Jira record.</p></div>${ticketPanel()}</div>`;
+}
+</script>
+<script>
+/* ---------- file loading ---------- */
+function afterLoad(){
+  if(ST.tickets.length&&!ST.period){
+    const ds=ST.tickets.map(t=>t.cr).filter(Boolean).sort();
+    const hi=ds[ds.length-1],y=+hi.slice(0,4),m=+hi.slice(5,7)-1;
+    ST.period={s:iso(new Date(y,m,1)),e:iso(new Date(y,m+1,0))};
+    const pv=prevWindow(ST.period.s,ST.period.e);
+    ST.pend={...ST.period};ST.preset='1m';ST.ctlBuilt=false;ST.cmpBuilt=false;
+    ST.cmp={as:ST.period.s,ae:ST.period.e,bs:pv.s,be:pv.e};
+    ST.cmpPend={...ST.cmp};
+  }
+}
+function handleFiles(list){
+  const files=[...list];if(!files.length)return;
+  let pending=files.length;
+  const done=()=>{ if(--pending>0) return; afterLoad(); render(); };
+  for(const f of files){
+    const rd=new FileReader();
+    rd.onerror=()=>{ST.notes.push({lvl:'bad',msg:'Could not read “'+esc(f.name)+'”.'});done()};
+    rd.onload=()=>{
+      const txt=String(rd.result||'');
+      const isJson=/\.json$/i.test(f.name)||/^\s*[\[{]/.test(txt.replace(/^\uFEFF/,''));
+      if(isJson){
+        const res=readSummaryFile(txt,f.name);
+        if(res.error) ST.notes.push({lvl:'bad',msg:res.error});
+        else{
+          const log=ingest(res,ST.sum);ST.logs.push(log);ST.files.push(f.name);
+          ST.notes.push({lvl:'ok',msg:'“'+esc(f.name)+'”: '+res.entries.length+' summaries read, '+log.added+' new'+
+            (log.skippedFrozen?', '+log.skippedFrozen+' frozen and left alone':'')+
+            (log.guarded?', '+log.guarded+' blank value'+(log.guarded>1?'s':'')+' blocked from overwriting real text':'')+'.'});
+          if(res.bad&&res.bad.length) ST.notes.push({lvl:'warn',msg:'“'+esc(f.name)+'”: '+res.bad.length+' entr'+(res.bad.length>1?'ies were':'y was')+' skipped as unreadable.'});
+        }
+      }else{
+        const res=buildJira(txt);
+        if(res.error) ST.notes.push({lvl:'bad',msg:'“'+esc(f.name)+'”: '+res.error});
+        else{ ST.tickets=res.tickets;ST.notes=res.notes.concat(ST.notes);ST.files.push(f.name);ST.period=null }
+      }
+      done();
+    };
+    rd.readAsText(f);
+  }
+}
+function wireFiles(){
+  const drop=document.getElementById('drop'),pick=document.getElementById('pick'),file=document.getElementById('file');
+  if(pick&&file){ pick.onclick=()=>file.click(); file.onchange=()=>handleFiles(file.files) }
+  if(drop){
+    drop.addEventListener('dragover',e=>{e.preventDefault();drop.classList.add('over')});
+    drop.addEventListener('dragleave',()=>drop.classList.remove('over'));
+    drop.addEventListener('drop',e=>{e.preventDefault();drop.classList.remove('over');
+      if(e.dataTransfer&&e.dataTransfer.files) handleFiles(e.dataTransfer.files)});
+  }
+  const exp=document.getElementById('expBtn');
+  if(exp) exp.onclick=()=>{const n=exportSummaries(ST.sum);
+    ST.notes.unshift({lvl:'ok',msg:n+' summaries exported and marked frozen.'});render()};
+}
+/* ---------- events ---------- */
+document.addEventListener('click',e=>{
+  const g=a=>e.target.closest('['+a+']');let x;
+  if(x=g('data-view')){ST.view=x.dataset.view;render();return}
+  if(x=g('data-flow')){ST.flow=x.dataset.flow;render();return}
+  if(x=g('data-f')){ST.ex[x.dataset.f]=x.dataset.v;ST.ex.open=null;render();return}
+  if(x=g('data-sort')){const k=x.dataset.sort;ST.ex.dir=ST.ex.sort===k?-ST.ex.dir:-1;ST.ex.sort=k;render();return}
+  if(x=g('data-row')){ST.ex.open=ST.ex.open===x.dataset.row?null:x.dataset.row;render();return}
+  if(x=g('data-quick')){                      // a preset click is itself the deliberate action, so it applies at once
+    const r=presetRange(x.dataset.quick);
+    ST.preset=x.dataset.quick;ST.period={...r};ST.pend={...r};ST.ex.open=null;
+    render();return}
+  if(e.target.closest('#apply')){ if(badRange(ST.pend.s,ST.pend.e))return;
+    ST.period={...ST.pend};ST.preset=null;ST.ex.open=null;render();return}
+  if(e.target.closest('#cmpApply')){ const c=ST.cmpPend;
+    if(badRange(c.as,c.ae)||badRange(c.bs,c.be))return;
+    ST.cmp={...c};ST.cmpRan=true;syncCmpCtl();cmpOut();return}
+  if(x=g('data-ms')){ ST.ex.ms=ST.ex.ms===x.dataset.ms?null:x.dataset.ms; render();return}
+  if(x=g('data-msclear')){ ST.ex[x.dataset.msclear]=[];ST.ex.open=null;render();return}
+  if(e.target.closest('.msp')) return;        // clicks inside the panel are handled on change
+  if(ST.ex.ms){ ST.ex.ms=null;render() }      // click anywhere else closes it
+});
+document.addEventListener('input',e=>{
+  const t=e.target;
+  /* Date inputs never trigger a re-render: rebuilding the field would close the
+     open month picker. Only the day count and Apply button are refreshed. */
+  if(t.id==='ps'||t.id==='pe'){ ST.pend[t.id==='ps'?'s':'e']=t.value;ST.preset=null;syncCtl();return}
+  if(t.dataset&&t.dataset.cmp){ ST.cmpPend[t.dataset.cmp]=t.value;syncCmpCtl();return}
+  if(t.id==='q'){ const v=t.value;ST.ex.q=v;ST.ex.open=null;render();
+    const f=document.getElementById('q'); if(f){f.focus();f.setSelectionRange(v.length,v.length)} return}
+});
+document.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.dataset&&t.dataset.mschk){
+    const f=t.dataset.mschk,v=t.value,cur=ST.ex[f];
+    ST.ex[f]=t.checked?[...new Set([...cur,v])]:cur.filter(x=>x!==v);
+    ST.ex.open=null;render();return}
+});
+render();
+</script>
